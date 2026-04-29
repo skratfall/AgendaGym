@@ -1,118 +1,307 @@
-package com.gym.agenda.presentation.screens
+package com.gym.agenda.di.screens
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gym.agenda.presentation.viewmodel.AddEditViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.gym.agenda.data.model.AppointmentStatus
+import com.gym.agenda.data.model.GymAppointment
+import com.gym.agenda.viewmodel.AddEditViewModel
+import com.gym.agenda.ui.utils.*
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditScreen(
-    viewModel: AddEditViewModel,
-    onNavigateBack: () -> Unit
+    appointmentId: String?,
+    onNavigateBack: () -> Unit,
+    viewModel: AddEditViewModel = hiltViewModel()
 ) {
-    val formState by viewModel.form.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.navigateBack.collect { if (it) onNavigateBack() }
+    var clientName by remember { mutableStateOf("") }
+    var service by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    var dateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var timeHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
+    var timeMinute by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MINUTE)) }
+    var notes by remember { mutableStateOf("") }
+
+    var expandedService by remember { mutableStateOf(false) }
+    val services = listOf("Entrenamiento Personal", "Yoga", "Crossfit", "Zumba", "Boxeo", "Natación")
+
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = if (dateMillis > 0) dateMillis else System.currentTimeMillis()
+    )
+
+    val timePickerState = rememberTimePickerState(
+        initialHour = timeHour,
+        initialMinute = timeMinute
+    )
+
+    // Cargar datos si es edición
+    LaunchedEffect(uiState.appointment) {
+        uiState.appointment?.let { appointment ->
+            clientName = appointment.clientName
+            service = appointment.service
+            price = appointment.price.toString()
+            dateMillis = appointment.dateMillis
+            timeHour = appointment.timeHour
+            timeMinute = appointment.timeMinute
+            notes = appointment.notes
+        }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("📝 Nueva Cita") }) }) { padding ->
+    // Navegar al guardar
+    LaunchedEffect(uiState.saveSuccess) {
+        if (uiState.saveSuccess) {
+            onNavigateBack()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(if (appointmentId == null) "Nueva Cita" else "Editar Cita")
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "Volver")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
         Column(
-            modifier = Modifier.padding(padding).padding(16.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
+            // Nombre del Cliente (Solo Admin puede editarlo o si es nueva cita?)
+            // En este caso lo dejamos para que el usuario ponga su nombre o se autocompleta
             OutlinedTextField(
-                value = formState.clientName,
-                onValueChange = { viewModel.setClientName(it) },
+                value = clientName,
+                onValueChange = { clientName = it },
                 label = { Text("Nombre del Cliente") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Person, null) }
             )
 
-            OutlinedTextField(
-                value = formState.service,
-                onValueChange = { viewModel.setService(it) },
-                label = { Text("Servicio (Personal Trainer, Yoga, Spinning...)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { showDatePicker(context) { viewModel.setDate(it) } },
-                    modifier = Modifier.weight(1f)
+            // Servicio - Exposed Dropdown Menu
+            ExposedDropdownMenuBox(
+                expanded = expandedService,
+                onExpandedChange = { expandedService = !expandedService },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = service,
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Servicio") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedService) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedService,
+                    onDismissRequest = { expandedService = false }
                 ) {
-                    Icon(Icons.Filled.CalendarToday, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        if (formState.dateMillis > 0)
-                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(formState.dateMillis))
-                        else "Fecha"
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = { showTimePicker(context) { h, m -> viewModel.setTime(h, m) } },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Filled.AccessTime, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(String.format("%02d:%02d", formState.timeHour, formState.timeMinute))
+                    services.forEach { item ->
+                        DropdownMenuItem(
+                            text = { Text(text = item) },
+                            onClick = {
+                                service = item
+                                expandedService = false
+                                // Precios sugeridos
+                                if (price.isEmpty() || price == "0.0") {
+                                    price = when(item) {
+                                        "Entrenamiento Personal" -> "50.0"
+                                        "Yoga" -> "30.0"
+                                        "Crossfit" -> "40.0"
+                                        else -> "25.0"
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Precio
             OutlinedTextField(
-                value = formState.notes,
-                onValueChange = { viewModel.setNotes(it) },
-                label = { Text("Notas (opcional)") },
+                value = price,
+                onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) price = it },
+                label = { Text("Precio") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2
+                placeholder = { Text("0.00") },
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                ),
+                leadingIcon = { Icon(Icons.Default.AttachMoney, null) }
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(onClick = viewModel::cancel, modifier = Modifier.weight(1f)) {
-                    Text("Cancelar")
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Fecha
+            OutlinedTextField(
+                value = if (dateMillis > 0) UiUtils.formatDate(dateMillis) else "",
+                onValueChange = { },
+                label = { Text("Fecha") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.Event, "Seleccionar fecha")
+                    }
                 }
-                Button(
-                    onClick = viewModel::save,
-                    enabled = formState.isValid,
-                    modifier = Modifier.weight(1f)
-                ) { Text("Guardar Cita") }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Hora
+            OutlinedTextField(
+                value = UiUtils.formatTime(timeHour, timeMinute),
+                onValueChange = { },
+                label = { Text("Hora") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showTimePicker = true }) {
+                        Icon(Icons.Default.AccessTime, "Seleccionar hora")
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Notas
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("Notas adicionales") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                maxLines = 5
+            )
+
+            uiState.errorMessage?.let { error ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    val appointment = GymAppointment(
+                        id = appointmentId ?: "",
+                        clientName = clientName,
+                        service = service,
+                        price = price.toDoubleOrNull() ?: 0.0,
+                        dateMillis = dateMillis,
+                        timeHour = timeHour,
+                        timeMinute = timeMinute,
+                        notes = notes,
+                        status = if (appointmentId == null)
+                            AppointmentStatus.PENDING
+                        else
+                            uiState.appointment?.status ?: AppointmentStatus.PENDING
+                    )
+                    viewModel.saveAppointment(appointment)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !uiState.isLoading &&
+                        clientName.isNotBlank() &&
+                        service.isNotBlank() &&
+                        dateMillis > 0
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text(
+                        if (appointmentId == null) "Agendar Cita" else "Guardar Cambios",
+                        fontSize = 16.sp
+                    )
+                }
             }
         }
     }
-}
 
-private fun showDatePicker(context: android.content.Context, onSelected: (Long) -> Unit) {
-    val cal = Calendar.getInstance()
-    DatePickerDialog(
-        context, { _, y, m, d ->
-            cal.set(y, m, d, 0, 0, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            onSelected(cal.timeInMillis)
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-    ).show()
-}
+    // DatePicker Dialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dateMillis = datePickerState.selectedDateMillis ?: dateMillis
+                    showDatePicker = false
+                }) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
-private fun showTimePicker(context: android.content.Context, onSelected: (Int, Int) -> Unit) {
-    val cal = Calendar.getInstance()
-    TimePickerDialog(
-        context, { _, h, m -> onSelected(h, m) },
-        cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true
-    ).show()
+    // TimePicker Dialog
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    timeHour = timePickerState.hour
+                    timeMinute = timePickerState.minute
+                    showTimePicker = false
+                }) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Cancelar")
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
+    }
 }

@@ -1,4 +1,4 @@
-package com.gym.agenda.presentation.screens
+package com.gym.agenda.di.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,47 +9,120 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
-import com.gym.agenda.presentation.state.GymListState
-import java.text.SimpleDateFormat
-import java.util.*
-import androidx.compose.material3.CardDefaults
-import androidx.compose.foundation.background
+import com.gym.agenda.ui.utils.UiUtils
+import com.gym.agenda.viewmodel.GymListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GymListScreen(
-    state: GymListState,
-    onDelete: (GymAppointment) -> Unit,
-    onAdd: () -> Unit
+fun ListScreen(
+    onNavigateToAddEdit: (String) -> Unit,
+    onNavigateBack: () -> Unit,
+    viewModel: GymListViewModel = hiltViewModel()
 ) {
-    val services = mapOf("Personal Trainer" to Icons.Filled.FitnessCenter, "Yoga" to Icons.Filled.SelfImprovement, "Spinning" to Icons.Filled.PedalBike, "Nutrición" to Icons.Filled.Restaurant)
+    val uiState by viewModel.uiState.collectAsState()
+    val appointments by viewModel.appointments.collectAsState()
+    var showFilterDropdown by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf<AppointmentStatus?>(null) }
+
+    val filteredAppointments = if (selectedFilter == null) {
+        appointments
+    } else {
+        appointments.filter { it.status == selectedFilter }
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("🏋️‍♂️ Agenda Gym", color = MaterialTheme.colorScheme.onPrimary) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary)) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Mis Citas") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "Volver")
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showFilterDropdown = true }) {
+                            Icon(Icons.Default.FilterList, "Filtrar")
+                        }
+
+                        DropdownMenu(
+                            expanded = showFilterDropdown,
+                            onDismissRequest = { showFilterDropdown = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Todas") },
+                                onClick = {
+                                    selectedFilter = null
+                                    showFilterDropdown = false
+                                }
+                            )
+                            AppointmentStatus.entries.forEach { status ->
+                                DropdownMenuItem(
+                                    text = { Text(status.name) },
+                                    onClick = {
+                                        selectedFilter = status
+                                        showFilterDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd, containerColor = MaterialTheme.colorScheme.secondary) {
-                Icon(Icons.Default.Add, contentDescription = "Nueva Cita")
+            FloatingActionButton(onClick = { onNavigateToAddEdit("new") }) {
+                Icon(Icons.Default.Add, "Nueva cita")
             }
         }
-    ) { padding ->
-        when {
-            state.isLoading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            state.error != null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { Text(state.error!!, color = MaterialTheme.colorScheme.error) }
-            state.items.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+    ) { paddingValues ->
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (filteredAppointments.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.EventBusy, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                    Spacer(Modifier.height(8.dp))
-                    Text("No hay citas programadas", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Icon(
+                        Icons.Default.EventBusy,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("No hay citas")
                 }
             }
-            else -> LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(state.items, key = { it.id }) { apt ->
-                    GymCard(apt, onDelete, services)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+            ) {
+                items(filteredAppointments, key = { it.id }) { appointment ->
+                    AppointmentListItem(
+                        appointment = appointment,
+                        onEdit = { onNavigateToAddEdit(appointment.id) },
+                        onDelete = { viewModel.deleteAppointment(appointment) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -57,27 +130,94 @@ fun GymListScreen(
 }
 
 @Composable
-fun GymCard(apt: GymAppointment, onDelete: (GymAppointment) -> Unit, services: Map<String, androidx.compose.ui.graphics.vector.ImageVector>) {
-    val date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(apt.dateMillis)
-    val time = String.format("%02d:%02d", apt.timeHour, apt.timeMinute)
-    val icon = services[apt.service] ?: Icons.Default.Star
+private fun AppointmentListItem(
+    appointment: GymAppointment,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar cita") },
+            text = { Text("¿Estás seguro de eliminar esta cita?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = MaterialTheme.shapes.medium
+        onClick = { }
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = appointment.service,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = UiUtils.formatDate(appointment.dateMillis),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = UiUtils.formatTime(appointment.timeHour, appointment.timeMinute),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                UiUtils.StatusChip(appointment.status)
             }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(apt.clientName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                Text("${apt.service} • $date $time", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (apt.notes.isNotBlank()) Text(apt.notes, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (appointment.notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = appointment.notes,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
             }
-            TextButton(onClick = { onDelete(apt) }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Editar")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }

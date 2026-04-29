@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "291508855430",
+    "project_id": "agendagym-e49d7",
+    "storage_bucket": "agendagym-e49d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:291508855430:android:0621a5f3f6169029ec6707",
+        "android_client_info": {
+          "package_name": "com.gym.agenda.camilo_12"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIkp99N_XMupF2Z83Xp1OaU4xOS8XW3hE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

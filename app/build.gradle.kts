@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt.android)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -14,7 +16,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.gym.agenda"
+        applicationId = "com.gym.agenda.camilo_12"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -52,9 +54,16 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+
+
+    // ✅ FIREBASE
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
+    // ✅ HILT
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.kotlinx.coroutines.android)
 }

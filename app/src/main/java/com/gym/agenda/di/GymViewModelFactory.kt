@@ -2,16 +2,19 @@ package com.gym.agenda.di
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.gym.agenda.data.repository.GymRepository
-import com.gym.agenda.presentation.viewmodel.AddEditViewModel
-import com.gym.agenda.presentation.viewmodel.GymListViewModel
+import com.gym.agenda.data.repository.AppointmentRepository
+import com.gym.agenda.data.repository.AuthRepository
+import com.gym.agenda.viewmodel.AddEditViewModel
+import com.gym.agenda.viewmodel.GymListViewModel
 
-class GymViewModelFactory(private val repo: GymRepository) : ViewModelProvider.Factory {
+class GymViewModelFactory(
+    private val appointmentRepo: AppointmentRepository,
+    private val authRepo: AuthRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
         modelClass.isAssignableFrom(GymListViewModel::class.java) ->
-            GymListViewModel(repo) as T
-        modelClass.isAssignableFrom(AddEditViewModel::class.java) ->
-            AddEditViewModel(repo) as T
-        else -> throw IllegalArgumentException("Unknown ViewModel")
+            GymListViewModel(appointmentRepo, authRepo) as T
+        else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

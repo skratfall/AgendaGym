@@ -1,51 +1,99 @@
-package com.gym.agenda.presentation.viewmodel
+package com.gym.agenda.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gym.agenda.data.model.GymAppointment
-import com.gym.agenda.data.repository.GymRepository
-import com.gym.agenda.presentation.state.FormState
+import com.gym.agenda.data.repository.AppointmentRepository
+import com.gym.agenda.data.repository.AuthRepository
+import com.gym.agenda.di.navigation.NavArgs
+import com.gym.agenda.state.AddEditAppointmentUiState
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AddEditViewModel(private val repo: GymRepository) : ViewModel() {
-    private val _form = MutableStateFlow(FormState())
-    val form: StateFlow<FormState> = _form.asStateFlow()
+@HiltViewModel
+class AddEditViewModel @Inject constructor(
+    private val appointmentRepository: AppointmentRepository,
+    private val authRepository: AuthRepository,
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
 
-    private val _navigateBack = MutableStateFlow(false)
-    val navigateBack: StateFlow<Boolean> = _navigateBack.asStateFlow()
+    private val appointmentId: String? = savedStateHandle.get<String>(NavArgs.APPOINTMENT_ID)
+        .takeIf { it != "new" }
 
-    fun setClientName(name: String) = updateForm { copy(clientName = name) }
-    fun setService(service: String) = updateForm { copy(service = service) }
-    fun setDate(millis: Long) = updateForm { copy(dateMillis = millis) }
-    fun setTime(hour: Int, minute: Int) = updateForm { copy(timeHour = hour, timeMinute = minute) }
-    fun setNotes(notes: String) = updateForm { copy(notes = notes) }
+    private val _uiState = MutableStateFlow(AddEditAppointmentUiState())
+    val uiState: StateFlow<AddEditAppointmentUiState> = _uiState.asStateFlow()
 
-    private fun updateForm(update: FormState.() -> FormState) {
-        _form.update { current ->
-            val updated = current.update()
-            updated.copy(isValid = validate(updated))
+    init {
+        if (appointmentId != null) {
+            loadAppointment()
         }
     }
 
-    private fun validate(s: FormState): Boolean =
-        s.clientName.isNotBlank() && s.service.isNotBlank() && s.dateMillis > 0
-
-    fun save() {
-        if (!form.value.isValid) return
+    private fun loadAppointment() {
         viewModelScope.launch {
-            val f = form.value
-            repo.save(GymAppointment(
-                clientName = f.clientName, service = f.service,
-                dateMillis = f.dateMillis, timeHour = f.timeHour,
-                timeMinute = f.timeMinute, notes = f.notes
-            ))
-            _navigateBack.value = true
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            appointmentRepository.getAppointmentById(appointmentId!!)
+                .onSuccess { appointment ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        appointment = appointment,
+                        isEditMode = true
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Error al cargar cita"
+                    )
+                }
         }
     }
 
-    fun cancel() { _navigateBack.value = true }
+    fun saveAppointment(appointment: GymAppointment) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            val currentUser = authRepository.currentUser
+            val appointmentToSave = if (appointmentId == null) {
+                // Nueva cita - agregar userId
+                appointment.copy(userId = currentUser?.id ?: "")
+            } else {
+                appointment
+            }
+
+            val result = if (appointmentId == null) {
+                appointmentRepository.createAppointment(appointmentToSave)
+            } else {
+                appointmentRepository.updateAppointment(appointmentToSave)
+            }
+
+            result
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        saveSuccess = true
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Error al guardar"
+                    )
+                }
+        }
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun resetSaveSuccess() {
+        _uiState.value = _uiState.value.copy(saveSuccess = false)
+    }
 }

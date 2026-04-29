@@ -3,36 +3,38 @@ package com.gym.agenda
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import com.gym.agenda.di.AppContainer
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
 import com.gym.agenda.di.navigation.GymNavHost
+import com.gym.agenda.ui.theme.GymAgendaTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val container = AppContainer(this)
+
+        // Habilita modo edge-to-edge para Android 14+ (barras transparentes)
+        enableEdgeToEdge()
+
         setContent {
             GymAgendaTheme {
-                GymNavHost(repository = container.repo)
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    // Controlador de navegación único para toda la app
+                    val navController = rememberNavController()
+
+                    // Inicia el sistema de navegación con roles (Admin/Usuario)
+                    GymNavHost(navController = navController)
+                }
             }
         }
     }
-}
-
-@Composable
-fun GymAgendaTheme (content: @Composable () -> Unit) {
-    val darkTheme = isSystemInDarkTheme()
-    val colorScheme = if (darkTheme) darkColorScheme(
-        primary = Color(0xFF8C7AE6), secondary = Color(0xFF00E676),
-        tertiary = Color(0xFFFFAB91), surface = Color(0xFF121212),
-        onSurface = Color(0xFFE0E0E0)
-    ) else lightColorScheme(
-        primary = Color(0xFF6C63FF), secondary = Color(0xFF00BFA5),
-        tertiary = Color(0xFFFF9800), surface = Color(0xFFFAFAFA),
-        onSurface = Color(0xFF212121)
-    )
-    MaterialTheme(colorScheme = colorScheme, content = content)
 }
