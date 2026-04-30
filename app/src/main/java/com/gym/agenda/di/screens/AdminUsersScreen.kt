@@ -46,14 +46,7 @@ fun AdminUsersScreen(
                 .padding(16.dp)
         ) {
             items(users, key = { it.id }) { user ->
-                UserListItem(
-                    user = user,
-                    onToggleRole = {
-                        val newRole = if (user.role == UserRole.ADMIN)
-                            UserRole.USER else UserRole.ADMIN
-                        viewModel.updateUserRole(user.id, newRole)
-                    }
-                )
+                UserListItem(user = user)
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -62,8 +55,7 @@ fun AdminUsersScreen(
 
 @Composable
 private fun UserListItem(
-    user: User,
-    onToggleRole: () -> Unit
+    user: User
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -92,10 +84,6 @@ private fun UserListItem(
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            FilledTonalButton(onClick = onToggleRole) {
-                Text(if (user.role == UserRole.ADMIN) "Quitar Admin" else "Hacer Admin")
             }
         }
     }

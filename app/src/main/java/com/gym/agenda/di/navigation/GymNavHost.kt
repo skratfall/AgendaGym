@@ -177,6 +177,11 @@ fun GymNavHost(
             AdminAppointmentsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToEdit = { appointmentId ->
+                    navController.navigate(
+                        GymNav.AddEditAppointment.createRoute(appointmentId)
+                    )
                 }
             )
         }

@@ -63,4 +63,10 @@ class AdminViewModel @Inject constructor(
             appointmentRepository.updateAppointmentStatus(appointmentId, status)
         }
     }
+
+    fun deleteAppointment(appointmentId: String) {
+        viewModelScope.launch {
+            appointmentRepository.deleteAppointment(appointmentId)
+        }
+    }
 }

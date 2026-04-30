@@ -23,6 +23,7 @@ import com.gym.agenda.ui.utils.UiUtils
 @Composable
 fun AdminAppointmentsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToEdit: (String) -> Unit,
     viewModel: AdminViewModel = hiltViewModel()
 ) {
     val appointments by viewModel.allAppointments.collectAsState()
@@ -50,7 +51,9 @@ fun AdminAppointmentsScreen(
                     appointment = appointment,
                     onStatusChange = { newStatus ->
                         viewModel.updateAppointmentStatus(appointment.id, newStatus)
-                    }
+                    },
+                    onEdit = { onNavigateToEdit(appointment.id) },
+                    onDelete = { viewModel.deleteAppointment(appointment.id) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -62,9 +65,35 @@ fun AdminAppointmentsScreen(
 @Composable
 private fun AdminAppointmentCard(
     appointment: GymAppointment,
-    onStatusChange: (AppointmentStatus) -> Unit
+    onStatusChange: (AppointmentStatus) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var selectedStatus by remember { mutableStateOf<AppointmentStatus?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar cita") },
+            text = { Text("¿Estás seguro de eliminar permanentemente esta cita?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -96,7 +125,8 @@ private fun AdminAppointmentCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -118,23 +148,60 @@ private fun AdminAppointmentCard(
                             DropdownMenuItem(
                                 text = { Text(status.name) },
                                 onClick = {
-                                    onStatusChange(status)
+                                    selectedStatus = status
+                                    showConfirmDialog = true
                                     expanded = false
                                 }
                             )
                         }
                     }
                 }
+            }
+            
+            if (appointment.notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Notas: ${appointment.notes}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
 
-                if (appointment.notes.isNotBlank()) {
-                    Text(
-                        text = appointment.notes,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2
-                    )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
+    }
+
+    if (showConfirmDialog && selectedStatus != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Confirmar Cambio") },
+            text = { Text("¿Estás seguro de cambiar el estado de la cita a ${selectedStatus?.name}?") },
+            confirmButton = {
+                Button(onClick = {
+                    onStatusChange(selectedStatus!!)
+                    showConfirmDialog = false
+                }) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }

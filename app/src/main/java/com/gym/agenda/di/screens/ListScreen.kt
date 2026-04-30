@@ -119,8 +119,7 @@ fun ListScreen(
                 items(filteredAppointments, key = { it.id }) { appointment ->
                     AppointmentListItem(
                         appointment = appointment,
-                        onEdit = { onNavigateToAddEdit(appointment.id) },
-                        onDelete = { viewModel.deleteAppointment(appointment) }
+                        onEdit = { onNavigateToAddEdit(appointment.id) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -132,32 +131,8 @@ fun ListScreen(
 @Composable
 private fun AppointmentListItem(
     appointment: GymAppointment,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onEdit: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Eliminar cita") },
-            text = { Text("¿Estás seguro de eliminar esta cita?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete()
-                    showDeleteDialog = false
-                }) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = { }
@@ -210,12 +185,6 @@ private fun AppointmentListItem(
                     Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Editar")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = { showDeleteDialog = true }) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
