@@ -1,8 +1,11 @@
 package com.gym.agenda.di.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -20,24 +23,50 @@ fun GymNavHost(
     navController: NavHostController,
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
+    // 1. Observamos el usuario actual
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
-    val userRole = currentUser?.role
+    
+    // 2. Estado para fijar la ruta inicial y evitar que el NavHost se recree durante la sesión
+    var finalStartDestination by remember { mutableStateOf<String?>(null) }
 
-    val startDestination = when {
-        currentUser == null -> GymNav.Login.route
-        userRole == UserRole.ADMIN -> GymNav.AdminDashboard.route
-        else -> GymNav.Dashboard.route
+    // 3. Determinamos la ruta inicial basándonos en el primer estado disponible
+    LaunchedEffect(currentUser) {
+        if (finalStartDestination == null) {
+            // Pequeña espera para asegurar que Firebase ha tenido tiempo de emitir si hay sesión
+            finalStartDestination = when {
+                currentUser == null -> GymNav.Login.route
+                currentUser?.role == UserRole.ADMIN -> GymNav.AdminDashboard.route
+                else -> GymNav.Dashboard.route
+            }
+        }
+    }
+
+    // 4. Mientras se determina el destino (Splash/Loading)
+    if (finalStartDestination == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = finalStartDestination!!
     ) {
         // Auth flows
         composable(GymNav.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(GymNav.Dashboard.route) {
+                viewModel = authViewModel,
+                onLoginSuccess = { user ->
+                    val destination = if (user.role == UserRole.ADMIN) {
+                        GymNav.AdminDashboard.route
+                    } else {
+                        GymNav.Dashboard.route
+                    }
+                    navController.navigate(destination) {
                         popUpTo(GymNav.Login.route) { inclusive = true }
                     }
                 },
@@ -49,8 +78,14 @@ fun GymNavHost(
 
         composable(GymNav.Register.route) {
             RegisterScreen(
-                onRegisterSuccess = {
-                    navController.navigate(GymNav.Dashboard.route) {
+                viewModel = authViewModel,
+                onRegisterSuccess = { user ->
+                    val destination = if (user.role == UserRole.ADMIN) {
+                        GymNav.AdminDashboard.route
+                    } else {
+                        GymNav.Dashboard.route
+                    }
+                    navController.navigate(destination) {
                         popUpTo(GymNav.Login.route) { inclusive = true }
                     }
                 },
@@ -63,6 +98,7 @@ fun GymNavHost(
         // User flows
         composable(GymNav.Dashboard.route) {
             DashboardScreen(
+                authViewModel = authViewModel,
                 onNavigateToAppointments = {
                     navController.navigate(GymNav.AppointmentList.route)
                 },
@@ -77,6 +113,7 @@ fun GymNavHost(
                 }
             )
         }
+
 
         composable(GymNav.AppointmentList.route) {
             ListScreen(
@@ -112,6 +149,7 @@ fun GymNavHost(
         // Admin flows
         composable(GymNav.AdminDashboard.route) {
             AdminDashboardScreen(
+                authViewModel = authViewModel,
                 onNavigateToUsers = {
                     navController.navigate(GymNav.AdminUsers.route)
                 },

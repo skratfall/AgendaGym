@@ -26,7 +26,7 @@ import com.gym.agenda.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (com.gym.agenda.data.model.User) -> Unit,
     onNavigateToRegister: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -36,8 +36,8 @@ fun LoginScreen(
 
     // Efecto para navegar cuando el login es exitoso
     LaunchedEffect(uiState.currentUser) {
-        if (uiState.currentUser != null) {
-            onLoginSuccess()
+        uiState.currentUser?.let { user ->
+            onLoginSuccess(user)
         }
     }
 
