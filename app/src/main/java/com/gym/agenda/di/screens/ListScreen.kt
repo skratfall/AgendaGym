@@ -16,7 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.ui.utils.UiUtils
-import com.gym.agenda.viewmodel.GymListViewModel
+import com.gym.agenda.di.viewmodel.GymListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

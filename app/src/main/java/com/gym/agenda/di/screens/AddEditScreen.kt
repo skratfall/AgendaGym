@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
-import com.gym.agenda.viewmodel.AddEditViewModel
+import com.gym.agenda.di.viewmodel.AddEditViewModel
 import com.gym.agenda.ui.utils.*
 import java.util.Calendar
 

@@ -1,6 +1,10 @@
 package com.gym.agenda.data.model
 
 
+import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.IgnoreExtraProperties
+
+@IgnoreExtraProperties
 data class User(
     val id: String = "",
     val email: String = "",
@@ -24,7 +28,7 @@ data class User(
         } catch (e: Exception) {
             UserRole.USER
         },
-        isActive = map["isActive"] as? Boolean ?: true,
+        isActive = map["isActive"] as? Boolean ?: (map["active"] as? Boolean ?: true),
         createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         lastLogin = (map["lastLogin"] as? Number)?.toLong() ?: 0L
     )
@@ -43,10 +47,12 @@ data class User(
         )
     }
 
-    // 🔹 Propiedades computadas útiles
+    // 🔹 Propiedades computadas útiles - Marcadas con @Exclude para que Firebase las ignore
+    @get:Exclude
     val isAdmin: Boolean
         get() = role == UserRole.ADMIN
 
+    @get:Exclude
     val displayName: String
         get() = if (name.isNotBlank()) name else email.split("@").first()
 }

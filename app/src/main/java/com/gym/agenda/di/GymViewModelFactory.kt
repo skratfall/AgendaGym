@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
-import com.gym.agenda.viewmodel.AddEditViewModel
-import com.gym.agenda.viewmodel.GymListViewModel
+import com.gym.agenda.di.viewmodel.AddEditViewModel
+import com.gym.agenda.di.viewmodel.GymListViewModel
 
 class GymViewModelFactory(
     private val appointmentRepo: AppointmentRepository,

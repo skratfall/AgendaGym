@@ -1,4 +1,4 @@
-package com.gym.agenda.viewmodel
+package com.gym.agenda.di.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

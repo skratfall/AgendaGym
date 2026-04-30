@@ -13,10 +13,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.gym.agenda.data.model.UserRole
+import com.gym.agenda.di.viewmodel.AddEditViewModel
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
-import com.gym.agenda.viewmodel.AddEditViewModel
-import com.gym.agenda.viewmodel.GymListViewModel
+import com.gym.agenda.di.viewmodel.GymListViewModel
 
 @Composable
 fun GymNavHost(

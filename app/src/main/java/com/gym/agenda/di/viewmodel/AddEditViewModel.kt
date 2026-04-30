@@ -1,4 +1,4 @@
-package com.gym.agenda.viewmodel
+package com.gym.agenda.di.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -59,10 +60,23 @@ class AddEditViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            val currentUser = authRepository.currentUser
+            // Obtenemos el usuario de forma segura desde el flow
+            val currentUser = authRepository.authState.first()
+            
+            if (currentUser == null) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Sesión no válida. Por favor, inicia sesión de nuevo."
+                )
+                return@launch
+            }
+
             val appointmentToSave = if (appointmentId == null) {
-                // Nueva cita - agregar userId
-                appointment.copy(userId = currentUser?.id ?: "")
+                // Nueva cita - agregar userId y nombre del cliente si falta
+                appointment.copy(
+                    userId = currentUser.id,
+                    clientName = if (appointment.clientName.isBlank()) currentUser.name else appointment.clientName
+                )
             } else {
                 appointment
             }
