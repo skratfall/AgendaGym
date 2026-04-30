@@ -1,5 +1,6 @@
 package com.gym.agenda.di.screens
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +31,7 @@ fun ListScreen(
     val appointments by viewModel.appointments.collectAsState()
     var showFilterDropdown by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf<AppointmentStatus?>(null) }
+    val context = LocalContext.current
 
     val filteredAppointments = if (selectedFilter == null) {
         appointments
@@ -119,7 +122,15 @@ fun ListScreen(
                 items(filteredAppointments, key = { it.id }) { appointment ->
                     AppointmentListItem(
                         appointment = appointment,
-                        onEdit = { onNavigateToAddEdit(appointment.id) }
+                        onEdit = { onNavigateToAddEdit(appointment.id) },
+                        onAddToCalendar = {
+                            UiUtils.addToCalendar(
+                                context = context,
+                                service = appointment.service,
+                                startTimeMillis = appointment.dateTimeMillis,
+                                notes = appointment.notes
+                            )
+                        }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -131,7 +142,8 @@ fun ListScreen(
 @Composable
 private fun AppointmentListItem(
     appointment: GymAppointment,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onAddToCalendar: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -181,10 +193,26 @@ private fun AppointmentListItem(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                if (appointment.status == AppointmentStatus.CONFIRMED) {
+                    TextButton(onClick = onAddToCalendar) {
+                        Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Añadir al Calendario")
+                    }
+                }
+
+                val canEdit = appointment.status == AppointmentStatus.PENDING
+                TextButton(
+                    onClick = onEdit,
+                    enabled = canEdit
+                ) {
+                    Icon(
+                        if (canEdit) Icons.Default.Edit else Icons.Default.Lock, 
+                        null, 
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Editar")
+                    Text(if (canEdit) "Editar" else "Confirmada")
                 }
             }
         }

@@ -26,6 +26,31 @@ fun AdminUsersScreen(
     viewModel: AdminViewModel = hiltViewModel()
 ) {
     val users by viewModel.users.collectAsState()
+    var userToDelete by remember { mutableStateOf<User?>(null) }
+
+    if (userToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { userToDelete = null },
+            title = { Text("Eliminar Usuario") },
+            text = { Text("¿Estás seguro de que deseas eliminar a ${userToDelete?.name}? Se borrarán también todas sus citas.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        userToDelete?.let { viewModel.deleteUser(it.id) }
+                        userToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { userToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -46,7 +71,10 @@ fun AdminUsersScreen(
                 .padding(16.dp)
         ) {
             items(users, key = { it.id }) { user ->
-                UserListItem(user = user)
+                UserListItem(
+                    user = user,
+                    onDelete = { userToDelete = user }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -55,7 +83,8 @@ fun AdminUsersScreen(
 
 @Composable
 private fun UserListItem(
-    user: User
+    user: User,
+    onDelete: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -84,6 +113,16 @@ private fun UserListItem(
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            if (user.role != UserRole.ADMIN) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Eliminar usuario",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

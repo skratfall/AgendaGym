@@ -54,10 +54,10 @@ data class GymAppointment(
     }
 
     val isUpcoming: Boolean
-        get() = dateMillis > System.currentTimeMillis()
+        get() = dateTimeMillis > System.currentTimeMillis()
 
     val isPast: Boolean
-        get() = dateMillis < System.currentTimeMillis()
+        get() = dateTimeMillis < System.currentTimeMillis()
 
     val dateTimeMillis: Long
         get() = dateMillis + (timeHour * 3600000L) + (timeMinute * 60000L)

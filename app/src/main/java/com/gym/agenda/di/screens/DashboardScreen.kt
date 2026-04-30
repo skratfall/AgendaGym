@@ -30,7 +30,7 @@ fun DashboardScreen(
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
     val appointments by listViewModel.appointments.collectAsState()
 
-    val upcomingAppointments = appointments.filter { it.isUpcoming }
+    val upcomingAppointments = appointments.filter { it.isUpcoming && it.status != com.gym.agenda.data.model.AppointmentStatus.CANCELLED }
     val userName = currentUser?.name ?: "Usuario"
 
     Scaffold(

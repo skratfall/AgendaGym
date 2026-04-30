@@ -91,4 +91,9 @@ class AuthRepository @Inject constructor(
     suspend fun toggleUserActive(userId: String, isActive: Boolean): Result<Unit> {
         return firestoreService.updateUser(userId, mapOf("isActive" to isActive))
     }
+
+    // 🔹 Eliminar usuario (ADMIN)
+    suspend fun deleteUser(userId: String): Result<Unit> {
+        return firestoreService.deleteUser(userId)
+    }
 }

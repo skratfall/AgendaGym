@@ -43,7 +43,17 @@ fun AddEditScreen(
     var showTimePicker by remember { mutableStateOf(false) }
 
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = if (dateMillis > 0) dateMillis else System.currentTimeMillis()
+        initialSelectedDateMillis = if (dateMillis > 0) dateMillis else System.currentTimeMillis(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                return utcTimeMillis >= calendar.timeInMillis
+            }
+        }
     )
 
     val timePickerState = rememberTimePickerState(
@@ -242,7 +252,8 @@ fun AddEditScreen(
                 enabled = !uiState.isLoading &&
                         clientName.isNotBlank() &&
                         service.isNotBlank() &&
-                        dateMillis > 0
+                        dateMillis > 0 &&
+                        (appointmentId == null || uiState.appointment?.status == AppointmentStatus.PENDING)
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
@@ -250,8 +261,11 @@ fun AddEditScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
+                    val isConfirmed = uiState.appointment?.status == AppointmentStatus.CONFIRMED
                     Text(
-                        if (appointmentId == null) "Agendar Cita" else "Guardar Cambios",
+                        if (appointmentId == null) "Agendar Cita" 
+                        else if (isConfirmed) "Cita Confirmada (No editable)" 
+                        else "Guardar Cambios",
                         fontSize = 16.sp
                     )
                 }
