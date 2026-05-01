@@ -11,6 +11,7 @@ import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,10 +30,18 @@ class AdminViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
+    private val _refreshTrigger = MutableSharedFlow<Unit>()
+
     val users: StateFlow<List<User>> = authRepository.getAllUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allAppointments: StateFlow<List<GymAppointment>> = appointmentRepository.getAllAppointments()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allAppointments: StateFlow<List<GymAppointment>> = merge(
+        flowOf(Unit),
+        _refreshTrigger
+    ).flatMapLatest {
+        appointmentRepository.getAllAppointments()
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val uiState: StateFlow<AdminUiState> = allAppointments.map { appointments ->
@@ -67,6 +76,12 @@ class AdminViewModel @Inject constructor(
     fun deleteAppointment(appointmentId: String) {
         viewModelScope.launch {
             appointmentRepository.deleteAppointment(appointmentId)
+        }
+    }
+
+    fun refreshAppointments() {
+        viewModelScope.launch {
+            _refreshTrigger.emit(Unit)
         }
     }
 

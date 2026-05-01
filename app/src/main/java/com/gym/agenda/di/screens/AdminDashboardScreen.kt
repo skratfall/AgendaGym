@@ -29,6 +29,11 @@ fun AdminDashboardScreen(
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
     val adminUiState by adminViewModel.uiState.collectAsState()
 
+    // Refrescar datos cuando la pantalla se compone (al regresaro desde AdminAppointmentsScreen)
+    LaunchedEffect(Unit) {
+        adminViewModel.refreshAppointments()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

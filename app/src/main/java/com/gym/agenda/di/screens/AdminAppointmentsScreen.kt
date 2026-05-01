@@ -27,6 +27,34 @@ fun AdminAppointmentsScreen(
     viewModel: AdminViewModel = hiltViewModel()
 ) {
     val appointments by viewModel.allAppointments.collectAsState()
+    var appointmentToDelete by remember { mutableStateOf<GymAppointment?>(null) }
+
+    // Diálogo de confirmación para eliminar
+    if (appointmentToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { appointmentToDelete = null },
+            title = { Text("Eliminar Cita") },
+            text = { Text("¿Estás seguro de que quieres eliminar esta cita?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        appointmentToDelete?.let { appointment ->
+                            viewModel.deleteAppointment(appointment.id)
+                            viewModel.refreshAppointments()
+                        }
+                        appointmentToDelete = null
+                    }
+                ) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { appointmentToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -53,7 +81,7 @@ fun AdminAppointmentsScreen(
                         viewModel.updateAppointmentStatus(appointment.id, newStatus)
                     },
                     onEdit = { onNavigateToEdit(appointment.id) },
-                    onDelete = { viewModel.deleteAppointment(appointment.id) }
+                    onDelete = { appointmentToDelete = appointment }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -72,23 +100,22 @@ private fun AdminAppointmentCard(
     var expanded by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var selectedStatus by remember { mutableStateOf<AppointmentStatus?>(null) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    if (showDeleteDialog) {
+    if (showConfirmDialog && selectedStatus != null) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Eliminar cita") },
-            text = { Text("¿Estás seguro de eliminar permanentemente esta cita?") },
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Confirmar Cambio") },
+            text = { Text("¿Estás seguro de cambiar el estado de la cita a ${selectedStatus?.name}?") },
             confirmButton = {
-                TextButton(onClick = {
-                    onDelete()
-                    showDeleteDialog = false
+                Button(onClick = {
+                    onStatusChange(selectedStatus!!)
+                    showConfirmDialog = false
                 }) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text("Confirmar")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = { showConfirmDialog = false }) {
                     Text("Cancelar")
                 }
             }
@@ -177,31 +204,10 @@ private fun AdminAppointmentCard(
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
                 }
-                IconButton(onClick = { showDeleteDialog = true }) {
+                IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
-    }
-
-    if (showConfirmDialog && selectedStatus != null) {
-        AlertDialog(
-            onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirmar Cambio") },
-            text = { Text("¿Estás seguro de cambiar el estado de la cita a ${selectedStatus?.name}?") },
-            confirmButton = {
-                Button(onClick = {
-                    onStatusChange(selectedStatus!!)
-                    showConfirmDialog = false
-                }) {
-                    Text("Confirmar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
     }
 }
