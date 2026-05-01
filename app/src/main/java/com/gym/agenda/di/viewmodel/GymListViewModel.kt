@@ -75,4 +75,8 @@ class GymListViewModel @Inject constructor(
             _appointments.value.filter { it.status == status }
         } ?: _appointments.value
     }
+
+    fun refreshAppointments() {
+        observeAppointments()
+    }
 }

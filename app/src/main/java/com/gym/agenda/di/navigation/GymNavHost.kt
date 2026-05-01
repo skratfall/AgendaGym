@@ -13,7 +13,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.gym.agenda.data.model.UserRole
-import com.gym.agenda.di.viewmodel.AddEditViewModel
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
 import com.gym.agenda.di.viewmodel.GymListViewModel
@@ -25,7 +24,7 @@ fun GymNavHost(
 ) {
     // 1. Observamos el usuario actual
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
-    
+
     // 2. Estado para fijar la ruta inicial y evitar que el NavHost se recree durante la sesión
     var finalStartDestination by remember { mutableStateOf<String?>(null) }
 
@@ -97,8 +96,10 @@ fun GymNavHost(
 
         // User flows
         composable(GymNav.Dashboard.route) {
+            val listViewModel: GymListViewModel = hiltViewModel()
             DashboardScreen(
                 authViewModel = authViewModel,
+                listViewModel = listViewModel,
                 onNavigateToAppointments = {
                     navController.navigate(GymNav.AppointmentList.route)
                 },
@@ -116,7 +117,10 @@ fun GymNavHost(
 
 
         composable(GymNav.AppointmentList.route) {
+            val dashboardBackStackEntry = remember(navController.currentBackStackEntry) { navController.getBackStackEntry(GymNav.Dashboard.route) }
+            val listViewModel: GymListViewModel = hiltViewModel(dashboardBackStackEntry)
             ListScreen(
+                viewModel = listViewModel,
                 onNavigateToAddEdit = { appointmentId ->
                     navController.navigate(
                         GymNav.AddEditAppointment.createRoute(appointmentId)
@@ -138,10 +142,18 @@ fun GymNavHost(
             )
         ) { backStackEntry ->
             val appointmentId = backStackEntry.arguments?.getString(NavArgs.APPOINTMENT_ID)
+
+            // Obtener el ViewModel compartido del Dashboard (siempre disponible)
+            val parentEntry = remember(navController.currentBackStackEntry) { navController.getBackStackEntry(GymNav.Dashboard.route) }
+            val listViewModel: GymListViewModel = hiltViewModel(parentEntry)
+
             AddEditScreen(
                 appointmentId = if (appointmentId == "new") null else appointmentId,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onAppointmentSaved = {
+                    listViewModel.refreshAppointments()
                 }
             )
         }
