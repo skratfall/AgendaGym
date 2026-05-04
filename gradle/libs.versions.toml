@@ -25,6 +25,7 @@ firebaseAuth = "24.0.1"
 hilt = "2.54"
 hiltNavigationCompose = "1.2.0"
 firebaseFirestore = "25.1.4"
+timber = "4.7.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -71,4 +72,5 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 

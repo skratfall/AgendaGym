@@ -16,6 +16,7 @@ import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
 import com.gym.agenda.di.viewmodel.GymListViewModel
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun GymNavHost(
@@ -29,14 +30,12 @@ fun GymNavHost(
     var finalStartDestination by remember { mutableStateOf<String?>(null) }
 
     // 3. Determinamos la ruta inicial basándonos en el primer estado disponible
-    LaunchedEffect(currentUser) {
-        if (finalStartDestination == null) {
-            // Pequeña espera para asegurar que Firebase ha tenido tiempo de emitir si hay sesión
-            finalStartDestination = when {
-                currentUser == null -> GymNav.Login.route
-                currentUser?.role == UserRole.ADMIN -> GymNav.AdminDashboard.route
-                else -> GymNav.Dashboard.route
-            }
+    LaunchedEffect(Unit) {
+        val user = authViewModel.currentUser.first()
+        finalStartDestination = when {
+            user == null -> GymNav.Login.route
+            user.role == UserRole.ADMIN -> GymNav.AdminDashboard.route
+            else -> GymNav.Dashboard.route
         }
     }
 

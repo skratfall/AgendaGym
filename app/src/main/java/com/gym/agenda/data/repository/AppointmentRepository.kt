@@ -4,8 +4,10 @@ import com.gym.agenda.data.firebase.FirestoreService
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.data.model.PaymentStatus
+import com.gym.agenda.utils.AppointmentValidator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,9 +18,12 @@ class AppointmentRepository @Inject constructor(
 
     // 🔹 Obtener citas del usuario (en tiempo real)
     fun getAppointments(userId: String): Flow<List<GymAppointment>> {
+        Timber.d("📥 Obteniendo citas del usuario: $userId")
         return firestoreService.getAppointments(userId)
             .map { appointments ->
-                appointments.filter { it.isActive() }
+                val filtered = appointments.filter { it.isActive() }
+                Timber.d("📊 Citas activas: ${filtered.size}")
+                filtered
             }
     }
 
@@ -68,18 +73,28 @@ class AppointmentRepository @Inject constructor(
 
     // 🔹 Crear nueva cita
     suspend fun createAppointment(appointment: GymAppointment): Result<String> {
-        // Validaciones básicas
-        if (appointment.userId.isBlank()) {
-            return Result.failure(Exception("User ID is required"))
-        }
-        if (appointment.service.isBlank()) {
-            return Result.failure(Exception("Service is required"))
-        }
-        if (appointment.dateMillis <= 0) {
-            return Result.failure(Exception("Valid date is required"))
+        Timber.d("📝 Creando nueva cita: ${appointment.service} para ${appointment.clientName}")
+
+        // 🔍 VALIDACIÓN CENTRALIZADA
+        val validationResult = AppointmentValidator.validateAppointment(
+            appointment = appointment,
+            checkTimeSlot = false  // La validación de disponibilidad se hace en Firestore
+        )
+
+        if (validationResult.isInvalid()) {
+            val errorMessage = validationResult.getErrorMessage() ?: "Validación fallida"
+            Timber.e("❌ Validación fallida al crear cita: $errorMessage")
+            return Result.failure(Exception(errorMessage))
         }
 
+        Timber.d("✅ Validación exitosa - procediendo a crear documento en Firestore")
         return firestoreService.createAppointment(appointment)
+            .onSuccess { appointmentId ->
+                Timber.i("✅ Cita creada exitosamente: $appointmentId")
+            }
+            .onFailure { error ->
+                Timber.e(error, "❌ Error al crear cita en Firestore")
+            }
     }
 
     // 🔹 Actualizar cita completa
@@ -108,7 +123,14 @@ class AppointmentRepository @Inject constructor(
 
     // 🔹 Cambiar estado de cita
     suspend fun updateAppointmentStatus(appointmentId: String, status: AppointmentStatus): Result<Unit> {
+        Timber.d("🔄 Actualizando estado de cita $appointmentId a: $status")
         return updateAppointmentFields(appointmentId, mapOf("status" to status.name))
+            .onSuccess {
+                Timber.i("✅ Estado actualizado: $appointmentId -> $status")
+            }
+            .onFailure { error ->
+                Timber.e(error, "❌ Error al actualizar estado")
+            }
     }
 
     // 🔹 Actualizar notas del admin
@@ -135,7 +157,14 @@ class AppointmentRepository @Inject constructor(
 
     // 🔹 Eliminar cita permanentemente (solo admin)
     suspend fun deleteAppointment(appointmentId: String): Result<Unit> {
+        Timber.d("🗑️ Eliminando cita: $appointmentId")
         return firestoreService.deleteAppointment(appointmentId)
+            .onSuccess {
+                Timber.i("✅ Cita eliminada: $appointmentId")
+            }
+            .onFailure { error ->
+                Timber.e(error, "❌ Error al eliminar cita")
+            }
     }
 
     // 🔹 Obtener cita por ID
@@ -151,12 +180,13 @@ class AppointmentRepository @Inject constructor(
         duration: Int,
         excludeAppointmentId: String? = null
     ): Boolean {
+        Timber.d("🔍 Verificando disponibilidad: ${timeHour}:${String.format("%02d", timeMinute)}")
         val appointments = firestoreService.getAppointmentsByDate(dateMillis)
 
         val requestedStart = dateMillis + (timeHour * 3600000L) + (timeMinute * 60000L)
         val requestedEnd = requestedStart + (duration * 60000L)
 
-        return appointments.none { appointment ->
+        val isAvailable = appointments.none { appointment ->
             if (excludeAppointmentId != null && appointment.id == excludeAppointmentId) {
                 return@none false
             }
@@ -170,6 +200,14 @@ class AppointmentRepository @Inject constructor(
             // Verificar solapamiento
             requestedStart < existingEnd && requestedEnd > existingStart
         }
+        
+        if (isAvailable) {
+            Timber.i("✅ Horario disponible")
+        } else {
+            Timber.w("⚠️ Horario ocupado")
+        }
+        
+        return isAvailable
     }
 }
 

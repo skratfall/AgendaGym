@@ -12,6 +12,8 @@ import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.di.navigation.NavArgs
 import com.gym.agenda.state.AddEditAppointmentUiState
+import com.gym.agenda.utils.AppointmentValidator
+import com.gym.agenda.utils.ValidationResult
 import com.gym.agenda.worker.NotificationWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -65,26 +68,34 @@ class AddEditViewModel @Inject constructor(
     }
 
     fun saveAppointment(appointment: GymAppointment) {
+        Timber.d("💾 Iniciando guardado de cita...")
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            // 1. Validación de anticipación (mínimo 1 hora antes)
-            val now = System.currentTimeMillis()
-            val appointmentTime = appointment.dateTimeMillis
-            val oneHourInMillis = 3600000L
-            
-            if (appointmentTime < (now + oneHourInMillis)) {
+            // 🔍 VALIDACIÓN CON EL NUEVO SISTEMA
+            val validationResult = AppointmentValidator.validateAppointment(
+                appointment = appointment,
+                checkTimeSlot = true,
+                existingAppointments = emptyList()  // TODO: Obtener citas conflictivas de Firestore
+            )
+
+            if (validationResult.isInvalid()) {
+                Timber.e("❌ Validación fallida: ${validationResult.getErrorMessage()}")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Las citas deben programarse con al menos 1 hora de anticipación."
+                    errorMessage = validationResult.getErrorMessage() ?: "Error en validación"
                 )
                 return@launch
             }
+
+            // ✅ VALIDACIÓN EXITOSA - Continuar con guardado
+            Timber.i("✅ Validación exitosa - procediendo a guardar...")
 
             // Obtenemos el usuario de forma segura desde el flow
             val currentUser = authRepository.authState.first()
             
             if (currentUser == null) {
+                Timber.e("❌ Usuario no autenticado")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Sesión no válida. Por favor, inicia sesión de nuevo."
@@ -94,12 +105,14 @@ class AddEditViewModel @Inject constructor(
 
             val appointmentToSave = if (appointmentId == null) {
                 // Nueva cita - agregar userId y nombre del cliente si falta
+                Timber.d("➕ Creando nueva cita para usuario: ${currentUser.id}")
                 appointment.copy(
                     userId = currentUser.id,
                     clientName = if (appointment.clientName.isBlank()) currentUser.name else appointment.clientName
                 )
             } else {
                 // Editar cita - mantener el userId original de la cita que estamos editando
+                Timber.d("✏️ Actualizando cita: $appointmentId")
                 appointment.copy(
                     userId = _uiState.value.appointment?.userId ?: currentUser.id
                 )
@@ -114,6 +127,7 @@ class AddEditViewModel @Inject constructor(
             result
                 .onSuccess { id ->
                     val finalId = if (appointmentId == null) id.toString() else appointmentId
+                    Timber.i("✅ Cita guardada: $finalId")
                     scheduleNotification(appointmentToSave.copy(id = finalId))
                     
                     _uiState.value = _uiState.value.copy(
@@ -122,6 +136,7 @@ class AddEditViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
+                    Timber.e(error, "❌ Error al guardar cita")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Error al guardar"
@@ -161,5 +176,43 @@ class AddEditViewModel @Inject constructor(
 
     fun resetSaveSuccess() {
         _uiState.value = _uiState.value.copy(saveSuccess = false)
+    }
+
+    /**
+     * Valida los campos básicos en tiempo real (util para desactivar botones)
+     * @return true si los campos son válidos
+     */
+    fun validateBasicFields(
+        clientName: String,
+        clientEmail: String,
+        service: String,
+        price: Double
+    ): Boolean {
+        val result = AppointmentValidator.validateBasicFields(
+            clientName = clientName,
+            clientEmail = clientEmail,
+            service = service,
+            price = price
+        )
+        Timber.d("⚡ Validación en tiempo real: ${if (result.isValid()) "✅ Válido" else "❌ Inválido"}")
+        return result.isValid()
+    }
+
+    /**
+     * Valida los campos de horario en tiempo real
+     * @return true si el horario es válido
+     */
+    fun validateTimeFields(
+        dateMillis: Long,
+        timeHour: Int,
+        timeMinute: Int
+    ): Boolean {
+        val result = AppointmentValidator.validateTimeFields(
+            dateMillis = dateMillis,
+            timeHour = timeHour,
+            timeMinute = timeMinute
+        )
+        Timber.d("⚡ Validación de hora en tiempo real: ${if (result.isValid()) "✅ Válida" else "❌ Inválida"}")
+        return result.isValid()
     }
 }
