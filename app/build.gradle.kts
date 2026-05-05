@@ -71,4 +71,9 @@ dependencies {
 
     // ✅ LOGGING
     implementation(libs.timber)
+
+    // ✅ UI Enhancements
+    implementation(libs.lottie.compose)
+    implementation(libs.accompanist.systemuicontroller)
+    implementation(libs.shimmer.compose)
 }

@@ -16,6 +16,7 @@ import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
 import com.gym.agenda.di.viewmodel.GymListViewModel
+import com.gym.agenda.ui.utils.ShimmerLoader
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -41,12 +42,7 @@ fun GymNavHost(
 
     // 4. Mientras se determina el destino (Splash/Loading)
     if (finalStartDestination == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
+        ShimmerLoader(modifier = Modifier.fillMaxSize())
         return
     }
 
@@ -143,8 +139,12 @@ fun GymNavHost(
             val appointmentId = backStackEntry.arguments?.getString(NavArgs.APPOINTMENT_ID)
 
             // Obtener el ViewModel compartido del Dashboard (siempre disponible)
-            val parentEntry = remember(navController.currentBackStackEntry) { navController.getBackStackEntry(GymNav.Dashboard.route) }
-            val listViewModel: GymListViewModel = hiltViewModel(parentEntry)
+            val parentEntry = try {
+                navController.getBackStackEntry(GymNav.Dashboard.route)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+            val listViewModel: GymListViewModel? = parentEntry?.let { hiltViewModel(it) }
 
             AddEditScreen(
                 appointmentId = if (appointmentId == "new") null else appointmentId,
@@ -152,7 +152,7 @@ fun GymNavHost(
                     navController.popBackStack()
                 },
                 onAppointmentSaved = {
-                    listViewModel.refreshAppointments()
+                    listViewModel?.refreshAppointments()
                 }
             )
         }

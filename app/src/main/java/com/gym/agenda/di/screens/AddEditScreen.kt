@@ -1,5 +1,8 @@
 package com.gym.agenda.di.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,16 +11,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.di.viewmodel.AddEditViewModel
 import com.gym.agenda.ui.utils.*
 import java.util.Calendar
+import com.gym.agenda.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,13 +226,25 @@ fun AddEditScreen(
                 maxLines = 5
             )
 
-            uiState.errorMessage?.let { error ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp
-                )
+            AnimatedVisibility(
+                visible = uiState.errorMessage != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                uiState.errorMessage?.let { error ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        LottieAnimation(
+                            spec = LottieCompositionSpec.RawRes(R.raw.error_animation), // Asumir que hay un archivo error_animation.json en res/raw
+                            size = 100.dp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

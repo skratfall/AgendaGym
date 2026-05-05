@@ -29,6 +29,11 @@ fun AdminAppointmentsScreen(
     val appointments by viewModel.allAppointments.collectAsState()
     var appointmentToDelete by remember { mutableStateOf<GymAppointment?>(null) }
 
+    // Refrescar cuando vuelve de editar
+    LaunchedEffect(Unit) {
+        viewModel.refreshAppointments()
+    }
+
     // Diálogo de confirmación para eliminar
     if (appointmentToDelete != null) {
         AlertDialog(

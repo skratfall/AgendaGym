@@ -17,6 +17,7 @@ import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.ui.utils.UiUtils
 import com.gym.agenda.di.viewmodel.GymListViewModel
+import com.gym.agenda.ui.utils.AnimatedButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,7 +145,7 @@ fun DashboardScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedButton(
+                AnimatedButton(
                     onClick = onNavigateToAppointments,
                     modifier = Modifier.fillMaxWidth()
                 ) {
