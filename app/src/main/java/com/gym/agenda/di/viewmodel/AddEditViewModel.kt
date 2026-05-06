@@ -8,11 +8,13 @@ import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.gym.agenda.data.model.GymAppointment
+import com.gym.agenda.data.model.NotificationEvent
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.di.navigation.NavArgs
 import com.gym.agenda.state.AddEditAppointmentUiState
 import com.gym.agenda.utils.AppointmentValidator
+import com.gym.agenda.utils.NotificationMessages
 import com.gym.agenda.utils.ValidationResult
 import com.gym.agenda.worker.NotificationWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +42,9 @@ class AddEditViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AddEditAppointmentUiState())
     val uiState: StateFlow<AddEditAppointmentUiState> = _uiState.asStateFlow()
 
+    private val _notification = MutableStateFlow<NotificationEvent?>(null)
+    val notification: StateFlow<NotificationEvent?> = _notification.asStateFlow()
+
     init {
         if (appointmentId != null) {
             loadAppointment()
@@ -63,6 +68,7 @@ class AddEditViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = error.message ?: "Error al cargar cita"
                     )
+                    _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.APPOINTMENT_ERROR)
                 }
         }
     }
@@ -81,10 +87,12 @@ class AddEditViewModel @Inject constructor(
 
             if (validationResult.isInvalid()) {
                 Timber.e("❌ Validación fallida: ${validationResult.getErrorMessage()}")
+                val errorMsg = validationResult.getErrorMessage() ?: NotificationMessages.APPOINTMENT_ERROR
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = validationResult.getErrorMessage() ?: "Error en validación"
+                    errorMessage = errorMsg
                 )
+                _notification.value = NotificationEvent.Error(errorMsg)
                 return@launch
             }
 
@@ -100,6 +108,7 @@ class AddEditViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = "Sesión no válida. Por favor, inicia sesión de nuevo."
                 )
+                _notification.value = NotificationEvent.Error(NotificationMessages.SESSION_EXPIRED)
                 return@launch
             }
 
@@ -130,10 +139,17 @@ class AddEditViewModel @Inject constructor(
                     Timber.i("✅ Cita guardada: $finalId")
                     scheduleNotification(appointmentToSave.copy(id = finalId))
                     
+                    val successMsg = if (appointmentId == null) {
+                        NotificationMessages.APPOINTMENT_CREATED
+                    } else {
+                        NotificationMessages.APPOINTMENT_UPDATED
+                    }
+
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         saveSuccess = true
                     )
+                    _notification.value = NotificationEvent.Success(successMsg)
                 }
                 .onFailure { error ->
                     Timber.e(error, "❌ Error al guardar cita")
@@ -141,6 +157,7 @@ class AddEditViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = error.message ?: "Error al guardar"
                     )
+                    _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.APPOINTMENT_ERROR)
                 }
         }
     }
@@ -176,6 +193,10 @@ class AddEditViewModel @Inject constructor(
 
     fun resetSaveSuccess() {
         _uiState.value = _uiState.value.copy(saveSuccess = false)
+    }
+
+    fun dismissNotification() {
+        _notification.value = null
     }
 
     /**
