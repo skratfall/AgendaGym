@@ -16,7 +16,6 @@ import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
 import com.gym.agenda.di.viewmodel.GymListViewModel
-import com.gym.agenda.ui.utils.ShimmerLoader
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -42,7 +41,12 @@ fun GymNavHost(
 
     // 4. Mientras se determina el destino (Splash/Loading)
     if (finalStartDestination == null) {
-        ShimmerLoader(modifier = Modifier.fillMaxSize())
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
         return
     }
 

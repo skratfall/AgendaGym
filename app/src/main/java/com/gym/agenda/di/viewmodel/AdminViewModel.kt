@@ -15,6 +15,7 @@ import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.utils.NotificationMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -63,20 +64,24 @@ class AdminViewModel @Inject constructor(
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val uiState: StateFlow<AdminUiState> = allAppointments.map { appointments ->
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<AdminUiState> = allAppointments.transformLatest { appointments ->
+        emit(AdminUiState(isLoading = true)) // Mostrar shimmer inmediatamente
+        delay(2000) // Esperar 2 segundos para que se vea bien
+
         if (appointments.isEmpty()) {
-            AdminUiState()
+            emit(AdminUiState())
         } else {
             val totalRevenue = appointments.sumOf { it.price }
             val totalCount = appointments.size
             val mostPopular = appointments.groupBy { it.service }
                 .maxByOrNull { it.value.size }?.key ?: "N/A"
             
-            AdminUiState(
+            emit(AdminUiState(
                 totalRevenue = totalRevenue,
                 totalAppointments = totalCount,
                 popularService = mostPopular
-            )
+            ))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AdminUiState(isLoading = true))
 

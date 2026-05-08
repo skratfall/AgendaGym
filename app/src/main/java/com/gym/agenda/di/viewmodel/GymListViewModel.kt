@@ -9,6 +9,7 @@ import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.state.AppointmentListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -20,7 +21,7 @@ class GymListViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AppointmentListUiState())
+    private val _uiState = MutableStateFlow(AppointmentListUiState(isLoading = true))
     val uiState: StateFlow<AppointmentListUiState> = _uiState.asStateFlow()
 
     private val _appointments = MutableStateFlow<List<GymAppointment>>(emptyList())
@@ -60,6 +61,8 @@ class GymListViewModel @Inject constructor(
                 .collect { list ->
                     Timber.i("✅ Citas cargadas: ${list.size} citas encontradas")
                     _appointments.value = list
+                    // ⏱️ Delay para que el shimmer se aprecie bien (2 segundos)
+                    delay(2000)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         appointments = list
@@ -104,6 +107,7 @@ class GymListViewModel @Inject constructor(
 
     fun refreshAppointments() {
         Timber.d("🔄 Disparando refresco de citas...")
+        _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             _refreshTrigger.emit(Unit)
         }
