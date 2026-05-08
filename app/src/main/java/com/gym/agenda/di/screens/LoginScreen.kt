@@ -55,11 +55,10 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 // Logo o Icono
-                Icon(
-                    imageVector = Icons.Default.FitnessCenter,
+                Image(
+                    painter = painterResource(id = R.drawable.imagen_ico),
                     contentDescription = "Gym Logo",
-                    modifier = Modifier.size(120.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(120.dp)
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -147,7 +146,7 @@ fun LoginScreen(
         ActionFeedbackSnackbar(
             notification = notification,
             onDismiss = { viewModel.dismissNotification() },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.TopCenter)
         )
     }
 }

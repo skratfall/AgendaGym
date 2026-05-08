@@ -155,7 +155,7 @@ fun AdminAppointmentsScreen(
         ActionFeedbackSnackbar(
             notification = notification,
             onDismiss = { viewModel.dismissNotification() },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.TopCenter)
         )
     }
 }

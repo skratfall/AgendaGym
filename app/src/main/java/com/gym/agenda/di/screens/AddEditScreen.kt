@@ -26,6 +26,7 @@ import com.gym.agenda.ui.utils.*
 import com.gym.agenda.R
 import com.gym.agenda.utils.GymServices
 import java.util.Calendar
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,9 +85,11 @@ fun AddEditScreen(
         }
     }
 
-    // Navegar al guardar
+    // Navegar al guardar (con delay para mostrar notificación)
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
+            // Esperar a que la notificación se muestre completamente (3.5s + animaciones)
+            delay(4000)
             onNavigateBack()
             onAppointmentSaved()
         }
@@ -347,7 +350,7 @@ fun AddEditScreen(
         ActionFeedbackSnackbar(
             notification = notification,
             onDismiss = { viewModel.dismissNotification() },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.TopCenter)
         )
     }
 }
