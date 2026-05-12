@@ -76,12 +76,11 @@ class AdminViewModel @Inject constructor(
         }
 
         newPending.forEach { appointment ->
-            // Esta notificación es LOCAL y GRATUITA
             notificationScheduler.showImmediateNotification(
                 title = "🔔 NUEVA SOLICITUD",
                 message = "El cliente ${appointment.clientName} solicita ${appointment.service}"
             )
-            Timber.i("📢 Notificación enviada al Admin para la cita: ${appointment.id}")
+            Timber.i("📢 Notificación enviada al Admin: ${appointment.id}")
         }
     }
 

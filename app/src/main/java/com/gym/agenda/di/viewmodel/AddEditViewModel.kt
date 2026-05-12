@@ -1,12 +1,8 @@
 package com.gym.agenda.di.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Data
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.data.model.NotificationEvent
@@ -17,17 +13,13 @@ import com.gym.agenda.state.AddEditAppointmentUiState
 import com.gym.agenda.utils.AppointmentValidator
 import com.gym.agenda.utils.NotificationMessages
 import com.gym.agenda.utils.NotificationScheduler
-import com.gym.agenda.utils.ValidationResult
-import com.gym.agenda.worker.NotificationWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -35,7 +27,6 @@ class AddEditViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository,
     private val authRepository: AuthRepository,
     private val notificationScheduler: NotificationScheduler,
-    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 

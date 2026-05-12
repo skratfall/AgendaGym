@@ -23,11 +23,11 @@ object UiUtils {
 
     @Composable
     fun StatusChip(status: AppointmentStatus) {
-        val (label, color) = when (status) {
-            AppointmentStatus.PENDING -> "Pendiente" to MaterialTheme.colorScheme.tertiary
-            AppointmentStatus.CONFIRMED -> "Confirmada" to MaterialTheme.colorScheme.primary
-            AppointmentStatus.CANCELLED -> "Cancelada" to MaterialTheme.colorScheme.error
-            else -> "Completada" to MaterialTheme.colorScheme.onSurfaceVariant
+        val color = when (status) {
+            AppointmentStatus.PENDING -> MaterialTheme.colorScheme.tertiary
+            AppointmentStatus.CONFIRMED -> MaterialTheme.colorScheme.primary
+            AppointmentStatus.CANCELLED -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
 
         Surface(
@@ -35,7 +35,7 @@ object UiUtils {
             shape = MaterialTheme.shapes.small
         ) {
             Text(
-                text = label,
+                text = status.displayName,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 fontSize = 12.sp,
                 color = color
