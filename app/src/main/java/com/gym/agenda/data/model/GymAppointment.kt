@@ -29,7 +29,8 @@ data class GymAppointment(
         timeMinute = (map["timeMinute"] as? Number)?.toInt() ?: 0,
         notes = map["notes"] as? String ?: "",
         status = try {
-            AppointmentStatus.valueOf((map["status"] as? String)?.uppercase() ?: "PENDING")
+            val statusStr = map["status"] as? String ?: "PENDING"
+            AppointmentStatus.entries.find { it.name.equals(statusStr, ignoreCase = true) } ?: AppointmentStatus.PENDING
         } catch (e: Exception) { AppointmentStatus.PENDING },
         createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (map["updatedAt"] as? Number)?.toLong() ?: (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()

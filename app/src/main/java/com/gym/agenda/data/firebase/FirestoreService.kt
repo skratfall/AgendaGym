@@ -26,47 +26,40 @@ class FirestoreService(
 
     // 🔹 Obtener citas de un usuario (en tiempo real)
     fun getAppointments(userId: String): Flow<List<GymAppointment>> {
-        return flow {
-            val listener = appointmentsCollection
-                .whereEqualTo("userId", userId)
-                .orderBy("dateMillis", Query.Direction.ASCENDING)
-                .orderBy("timeHour", Query.Direction.ASCENDING)
-                .orderBy("timeMinute", Query.Direction.ASCENDING)
-                .snapshots()
-
-            listener.collect { snapshot ->
-                val appointments = snapshot.documents.mapNotNull { doc ->
+        return appointmentsCollection
+            .whereEqualTo("userId", userId)
+            .orderBy("dateMillis", Query.Direction.ASCENDING)
+            .orderBy("timeHour", Query.Direction.ASCENDING)
+            .orderBy("timeMinute", Query.Direction.ASCENDING)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { doc ->
                     try {
                         GymAppointment(doc.id, doc.data ?: emptyMap())
                     } catch (e: Exception) {
+                        Timber.e(e, "Error al parsear cita del usuario")
                         null
                     }
                 }
-                emit(appointments)
             }
-        }
     }
 
     // 🔹 Obtener todas las citas (ADMIN)
     fun getAllAppointments(): Flow<List<GymAppointment>> {
-        return flow {
-            // Simplificamos la consulta para evitar errores de índices de Firestore
-            val listener = appointmentsCollection
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .snapshots()
-
-            listener.collect { snapshot ->
-                val appointments = snapshot.documents.mapNotNull { doc ->
+        // Simplificamos la consulta para evitar errores de índices de Firestore
+        return appointmentsCollection
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { doc ->
                     try {
                         GymAppointment(doc.id, doc.data ?: emptyMap())
                     } catch (e: Exception) { 
-                        Timber.e(e, "Error al parsear cita")
+                        Timber.e(e, "Error al parsear cita para admin")
                         null 
                     }
                 }
-                emit(appointments)
             }
-        }
     }
 
     // 🔹 Obtener citas por fecha específica

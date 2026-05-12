@@ -73,18 +73,20 @@ class AdminViewModel @Inject constructor(
         // Si el número de citas aumentó, hay algo nuevo
         if (appointments.size > lastProcessedCount) {
             val now = System.currentTimeMillis()
-            // Buscamos las citas más recientes que estén PENDING
+            // Buscamos las citas más recientes que estén PENDING y creadas hace menos de 2 minutos
             val newPending = appointments.filter { 
                 it.status == AppointmentStatus.PENDING && 
-                (now - it.createdAt) < 120000 // Ampliamos a 2 minutos por desfase de relojes
+                (now - it.createdAt) < 120000 
             }
 
-            newPending.forEach { appointment ->
+            // NOTIFICAR SOLO UNA VEZ
+            if (newPending.isNotEmpty()) {
+                val lastAppointment = newPending.first()
                 notificationScheduler.showImmediateNotification(
                     title = "🔔 NUEVA SOLICITUD",
-                    message = "El cliente ${appointment.clientName} solicita ${appointment.service}"
+                    message = "Cliente: ${lastAppointment.clientName} - Servicio: ${lastAppointment.service}"
                 )
-                Timber.i("📢 Notificación enviada al Admin: ${appointment.id}")
+                Timber.i("📢 Notificación única enviada al Admin: ${lastAppointment.id}")
             }
         }
         lastProcessedCount = appointments.size

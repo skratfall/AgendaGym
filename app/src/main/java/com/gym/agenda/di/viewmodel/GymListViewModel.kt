@@ -64,7 +64,11 @@ class GymListViewModel @Inject constructor(
                     Timber.i("✅ Citas cargadas: ${list.size} citas encontradas")
                     
                     // Detectar cambios de estado para notificar al usuario localmente
-                    checkForStatusChanges(list)
+                    if (previousAppointments.isNotEmpty()) {
+                        checkForStatusChanges(list)
+                    } else {
+                        previousAppointments = list
+                    }
                     
                     _appointments.value = list
                     _uiState.value = _uiState.value.copy(
@@ -76,16 +80,16 @@ class GymListViewModel @Inject constructor(
     }
 
     private fun checkForStatusChanges(newList: List<GymAppointment>) {
-        if (previousAppointments.isEmpty()) {
-            previousAppointments = newList
-            return
-        }
-
         newList.forEach { newApp ->
             val oldApp = previousAppointments.find { it.id == newApp.id }
+            
+            // Si la cita existía y su estado cambió
             if (oldApp != null && oldApp.status != newApp.status) {
-                Timber.i("🔔 Cambio de estado detectado para cita ${newApp.id}: ${oldApp.status} -> ${newApp.status}")
-                triggerLocalNotification(newApp)
+                // Solo notificar si pasa a CONFIRMED o CANCELLED
+                if (newApp.status == AppointmentStatus.CONFIRMED || newApp.status == AppointmentStatus.CANCELLED) {
+                    Timber.i("🔔 Cambio de estado detectado: ${newApp.id} -> ${newApp.status}")
+                    triggerLocalNotification(newApp)
+                }
             }
         }
         previousAppointments = newList
