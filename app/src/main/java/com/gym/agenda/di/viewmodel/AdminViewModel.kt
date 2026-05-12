@@ -233,33 +233,11 @@ class AdminViewModel @Inject constructor(
             appointmentRepository.getAppointmentById(appointmentId).onSuccess { appointment ->
                 appointmentRepository.updateAppointmentStatus(appointmentId, status)
                 
-                // 1. Notificar al usuario de forma inmediata según el estado
-                when (status) {
-                    AppointmentStatus.CONFIRMED -> {
-                        notificationScheduler.showImmediateNotification(
-                            title = "✅ Cita Confirmada",
-                            message = "Tu sesión de ${appointment.service} para el ${UiUtils.formatDate(appointment.dateMillis)} ha sido aprobada."
-                        )
-                        notificationScheduler.scheduleAppointmentNotification(appointment.copy(status = status))
-                    }
-                    AppointmentStatus.CANCELLED -> {
-                        notificationScheduler.showImmediateNotification(
-                            title = "❌ Cita Cancelada",
-                            message = "Tu cita de ${appointment.service} ha sido cancelada."
-                        )
-                        notificationScheduler.cancelAppointmentNotification(appointmentId)
-                    }
-                    // Asumiendo que REJECTED existe o se usa CANCELLED para esto
-                    else -> {
-                        notificationScheduler.cancelAppointmentNotification(appointmentId)
-                    }
-                }
-
-                // 2. Feedback visual para el admin
+                // 1. Feedback visual solo para el ADMIN (Snackbar/Toast)
                 val msg = NotificationMessages.ADMIN_STATUS_CHANGED.replace("%s", status.displayName)
                 _notification.value = NotificationEvent.Success(msg)
                 
-                // 3. Forzar refresco inmediato de la lista para que el admin vea el cambio
+                // 2. Forzar refresco inmediato de la lista para que el admin vea el cambio
                 refreshAppointments()
 
             }.onFailure { error ->

@@ -7,9 +7,9 @@ import com.gym.agenda.data.model.GymAppointment
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.state.AppointmentListUiState
+import com.gym.agenda.utils.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -18,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GymListViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppointmentListUiState(isLoading = true))
@@ -29,6 +30,8 @@ class GymListViewModel @Inject constructor(
 
     // 🔄 SharedFlow para disparar refresco explícito de citas
     private val _refreshTrigger = MutableSharedFlow<Unit>()
+    
+    private var previousAppointments: List<GymAppointment> = emptyList()
 
     init {
         Timber.d("📋 GymListViewModel inicializado")
@@ -43,10 +46,9 @@ class GymListViewModel @Inject constructor(
                 .filterNotNull()
                 .flatMapLatest { user ->
                     Timber.d("👤 Usuario autenticado: ${user.id}")
-                    // 🔄 Combinar emisión inicial + triggers de refresco manual
                     merge(
-                        flowOf(Unit),  // Emitir una vez al inicio
-                        _refreshTrigger  // Emitir cuando se llame a refreshAppointments()
+                        flowOf(Unit),
+                        _refreshTrigger
                     ).flatMapLatest {
                         Timber.d("📥 Consultando citas de Firestore...")
                         appointmentRepository.getAppointments(user.id)
@@ -60,9 +62,11 @@ class GymListViewModel @Inject constructor(
                 }
                 .collect { list ->
                     Timber.i("✅ Citas cargadas: ${list.size} citas encontradas")
+                    
+                    // Detectar cambios de estado para notificar al usuario localmente
+                    checkForStatusChanges(list)
+                    
                     _appointments.value = list
-                    // ⏱️ Delay para que el shimmer se aprecie bien (2 segundos)
-                    delay(2000)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         appointments = list
@@ -71,15 +75,36 @@ class GymListViewModel @Inject constructor(
         }
     }
 
+    private fun checkForStatusChanges(newList: List<GymAppointment>) {
+        if (previousAppointments.isEmpty()) {
+            previousAppointments = newList
+            return
+        }
+
+        newList.forEach { newApp ->
+            val oldApp = previousAppointments.find { it.id == newApp.id }
+            if (oldApp != null && oldApp.status != newApp.status) {
+                Timber.i("🔔 Cambio de estado detectado para cita ${newApp.id}: ${oldApp.status} -> ${newApp.status}")
+                triggerLocalNotification(newApp)
+            }
+        }
+        previousAppointments = newList
+    }
+
+    private fun triggerLocalNotification(appointment: GymAppointment) {
+        val title = when (appointment.status) {
+            AppointmentStatus.CONFIRMED -> "✅ ¡Cita Confirmada!"
+            AppointmentStatus.CANCELLED -> "❌ Cita Cancelada"
+            else -> "📅 Actualización de Cita"
+        }
+        val message = "Tu sesión de ${appointment.service} ha cambiado a: ${appointment.status.displayName}"
+        notificationScheduler.showImmediateNotification(title, message)
+    }
+
     fun deleteAppointment(appointment: GymAppointment) {
-        Timber.d("🗑️ Eliminando cita: ${appointment.id}")
         viewModelScope.launch {
             appointmentRepository.deleteAppointment(appointment.id)
-                .onSuccess {
-                    Timber.i("✅ Cita eliminada exitosamente: ${appointment.id}")
-                }
                 .onFailure { error ->
-                    Timber.e(error, "❌ Error al eliminar cita: ${appointment.id}")
                     _uiState.value = _uiState.value.copy(
                         errorMessage = error.message ?: "Error al eliminar"
                     )
@@ -88,25 +113,20 @@ class GymListViewModel @Inject constructor(
     }
 
     fun filterByStatus(status: AppointmentStatus?) {
-        Timber.d("🔍 Filtrando por estado: $status")
         _uiState.value = _uiState.value.copy(filterStatus = status)
     }
 
     fun clearError() {
-        Timber.d("🧹 Limpiando mensaje de error")
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
     fun getFilteredAppointments(): List<GymAppointment> {
-        val filtered = _uiState.value.filterStatus?.let { status ->
+        return _uiState.value.filterStatus?.let { status ->
             _appointments.value.filter { it.status == status }
         } ?: _appointments.value
-        Timber.d("📊 Citas filtradas: ${filtered.size} de ${_appointments.value.size}")
-        return filtered
     }
 
     fun refreshAppointments() {
-        Timber.d("🔄 Disparando refresco de citas...")
         _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             _refreshTrigger.emit(Unit)
