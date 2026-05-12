@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 
 class FirestoreService(
     private val firestore: FirebaseFirestore
@@ -49,16 +50,19 @@ class FirestoreService(
     // 🔹 Obtener todas las citas (ADMIN)
     fun getAllAppointments(): Flow<List<GymAppointment>> {
         return flow {
+            // Simplificamos la consulta para evitar errores de índices de Firestore
             val listener = appointmentsCollection
-                .orderBy("dateMillis", Query.Direction.DESCENDING)
-                .orderBy("timeHour", Query.Direction.ASCENDING)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
                 .snapshots()
 
             listener.collect { snapshot ->
                 val appointments = snapshot.documents.mapNotNull { doc ->
                     try {
                         GymAppointment(doc.id, doc.data ?: emptyMap())
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { 
+                        Timber.e(e, "Error al parsear cita")
+                        null 
+                    }
                 }
                 emit(appointments)
             }

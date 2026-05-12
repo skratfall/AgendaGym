@@ -46,7 +46,7 @@ class AdminViewModel @Inject constructor(
     val filters: StateFlow<AppointmentFilters> = _filters.asStateFlow()
 
     // Para evitar notificar citas viejas al iniciar la app
-    private var isInitialLoad = true
+    private var lastProcessedCount = -1
 
     val users: StateFlow<List<User>> = authRepository.getAllUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -63,25 +63,30 @@ class AdminViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun checkForNewAppointments(appointments: List<GymAppointment>) {
-        if (isInitialLoad) {
-            if (appointments.isNotEmpty()) isInitialLoad = false
+        // Si es la primera vez que cargamos, guardamos el total y no notificamos
+        if (lastProcessedCount == -1) {
+            lastProcessedCount = appointments.size
             return
         }
 
-        val now = System.currentTimeMillis()
-        // Detectar citas creadas en los últimos 30 segundos
-        val newPending = appointments.filter { 
-            it.status == AppointmentStatus.PENDING && 
-            (now - it.createdAt) < 30000 
-        }
+        // Si el número de citas aumentó, hay algo nuevo
+        if (appointments.size > lastProcessedCount) {
+            val now = System.currentTimeMillis()
+            // Buscamos las citas más recientes que estén PENDING
+            val newPending = appointments.filter { 
+                it.status == AppointmentStatus.PENDING && 
+                (now - it.createdAt) < 120000 // Ampliamos a 2 minutos por desfase de relojes
+            }
 
-        newPending.forEach { appointment ->
-            notificationScheduler.showImmediateNotification(
-                title = "🔔 NUEVA SOLICITUD",
-                message = "El cliente ${appointment.clientName} solicita ${appointment.service}"
-            )
-            Timber.i("📢 Notificación enviada al Admin: ${appointment.id}")
+            newPending.forEach { appointment ->
+                notificationScheduler.showImmediateNotification(
+                    title = "🔔 NUEVA SOLICITUD",
+                    message = "El cliente ${appointment.clientName} solicita ${appointment.service}"
+                )
+                Timber.i("📢 Notificación enviada al Admin: ${appointment.id}")
+            }
         }
+        lastProcessedCount = appointments.size
     }
 
     // Citas filtradas basadas en los filtros activos

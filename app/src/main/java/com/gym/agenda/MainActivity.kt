@@ -20,14 +20,23 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.gym.agenda.di.navigation.GymNavHost
 import com.gym.agenda.ui.theme.GymAgendaTheme
+import com.gym.agenda.utils.AdminNotificationObserver
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    @Inject
+    lateinit var adminNotificationObserver: AdminNotificationObserver
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
+        
+        // Iniciar vigilancia de administrador
+        adminNotificationObserver.startObserving()
 
         setContent {
             GymAgendaTheme {

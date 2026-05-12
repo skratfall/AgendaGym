@@ -316,7 +316,7 @@ private fun FilterPanel(
                     )
                     AppointmentStatus.entries.forEach { status ->
                         DropdownMenuItem(
-                            text = { Text(status.name) },
+                            text = { Text(status.displayName) },
                             onClick = {
                                 onFiltersChanged(filters.copy(selectedStatus = status))
                                 expandedStatus = false
@@ -472,7 +472,7 @@ private fun AdminAppointmentCard(
                     ) {
                         AppointmentStatus.entries.forEach { status ->
                             DropdownMenuItem(
-                                text = { Text(status.name) },
+                                text = { Text(status.displayName) },
                                 onClick = {
                                     selectedStatus = status
                                     showConfirmDialog = true
