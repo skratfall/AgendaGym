@@ -22,6 +22,7 @@ object NotificationMessages {
     const val STATUS_CONFIRMED = " Cita confirmada"
     const val STATUS_PENDING = "⏳ Cita pendiente"
     const val STATUS_CANCELLED = "❌ Cita cancelada"
+    const val STATUS_REJECTED = "🚫 Cita rechazada"
     const val STATUS_COMPLETED = " Cita completada"
 
     // ========== ADMIN MESSAGES ==========

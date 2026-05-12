@@ -14,6 +14,7 @@ import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.utils.NotificationMessages
 import com.gym.agenda.utils.NotificationScheduler
+import com.gym.agenda.ui.utils.UiUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,11 +102,9 @@ class AdminViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<AdminUiState> = allAppointments.transformLatest { appointments ->
-        emit(AdminUiState(isLoading = true)) // Mostrar shimmer inmediatamente
-        delay(2000) // Esperar 2 segundos para que se vea bien
-
+        // Quitamos el delay innecesario que hacía que la vista tardara en actualizarse
         if (appointments.isEmpty()) {
-            emit(AdminUiState())
+            emit(AdminUiState(isLoading = false))
         } else {
             val totalRevenue = appointments.sumOf { it.price }
             val totalCount = appointments.size
@@ -115,7 +114,8 @@ class AdminViewModel @Inject constructor(
             emit(AdminUiState(
                 totalRevenue = totalRevenue,
                 totalAppointments = totalCount,
-                popularService = mostPopular
+                popularService = mostPopular,
+                isLoading = false
             ))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AdminUiState(isLoading = true))
@@ -233,14 +233,35 @@ class AdminViewModel @Inject constructor(
             appointmentRepository.getAppointmentById(appointmentId).onSuccess { appointment ->
                 appointmentRepository.updateAppointmentStatus(appointmentId, status)
                 
-                if (status == AppointmentStatus.CONFIRMED) {
-                    notificationScheduler.scheduleAppointmentNotification(appointment.copy(status = status))
-                } else {
-                    notificationScheduler.cancelAppointmentNotification(appointmentId)
+                // 1. Notificar al usuario de forma inmediata según el estado
+                when (status) {
+                    AppointmentStatus.CONFIRMED -> {
+                        notificationScheduler.showImmediateNotification(
+                            title = "✅ Cita Confirmada",
+                            message = "Tu sesión de ${appointment.service} para el ${UiUtils.formatDate(appointment.dateMillis)} ha sido aprobada."
+                        )
+                        notificationScheduler.scheduleAppointmentNotification(appointment.copy(status = status))
+                    }
+                    AppointmentStatus.CANCELLED -> {
+                        notificationScheduler.showImmediateNotification(
+                            title = "❌ Cita Cancelada",
+                            message = "Tu cita de ${appointment.service} ha sido cancelada."
+                        )
+                        notificationScheduler.cancelAppointmentNotification(appointmentId)
+                    }
+                    // Asumiendo que REJECTED existe o se usa CANCELLED para esto
+                    else -> {
+                        notificationScheduler.cancelAppointmentNotification(appointmentId)
+                    }
                 }
 
+                // 2. Feedback visual para el admin
                 val msg = NotificationMessages.ADMIN_STATUS_CHANGED.replace("%s", status.displayName)
                 _notification.value = NotificationEvent.Success(msg)
+                
+                // 3. Forzar refresco inmediato de la lista para que el admin vea el cambio
+                refreshAppointments()
+
             }.onFailure { error ->
                 _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.ADMIN_ACTION_ERROR)
             }
