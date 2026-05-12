@@ -62,6 +62,7 @@ dependencies {
     // ✅ FIREBASE
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
 
     // ✅ HILT
     implementation(libs.hilt.android)

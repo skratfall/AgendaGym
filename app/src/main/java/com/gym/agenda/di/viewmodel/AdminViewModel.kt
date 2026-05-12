@@ -15,6 +15,7 @@ import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.utils.NotificationMessages
 import com.gym.agenda.utils.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import timber.log.Timber
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -67,18 +68,20 @@ class AdminViewModel @Inject constructor(
             return
         }
 
-        // Buscamos citas creadas en los últimos 10 segundos que estén PENDING
         val now = System.currentTimeMillis()
+        // Detectar citas creadas en los últimos 30 segundos
         val newPending = appointments.filter { 
             it.status == AppointmentStatus.PENDING && 
-            (now - it.createdAt) < 10000 // Creada hace menos de 10 seg
+            (now - it.createdAt) < 30000 
         }
 
         newPending.forEach { appointment ->
+            // Esta notificación es LOCAL y GRATUITA
             notificationScheduler.showImmediateNotification(
-                title = "Nueva Cita Solicitada",
-                message = NotificationMessages.ADMIN_NEW_APPOINTMENT.replace("%s", appointment.clientName)
+                title = "🔔 NUEVA SOLICITUD",
+                message = "El cliente ${appointment.clientName} solicita ${appointment.service}"
             )
+            Timber.i("📢 Notificación enviada al Admin para la cita: ${appointment.id}")
         }
     }
 

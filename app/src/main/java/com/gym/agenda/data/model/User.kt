@@ -13,6 +13,7 @@ data class User(
     val photoUrl: String? = null,
     val role: UserRole = UserRole.USER,
     val isActive: Boolean = true,
+    val fcmToken: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val lastLogin: Long = 0L
 ) {
@@ -29,6 +30,7 @@ data class User(
             UserRole.USER
         },
         isActive = map["isActive"] as? Boolean ?: (map["active"] as? Boolean ?: true),
+        fcmToken = map["fcmToken"] as? String,
         createdAt = (map["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         lastLogin = (map["lastLogin"] as? Number)?.toLong() ?: 0L
     )
@@ -42,6 +44,7 @@ data class User(
             "photoUrl" to photoUrl,
             "role" to role.name,
             "isActive" to isActive,
+            "fcmToken" to fcmToken,
             "createdAt" to createdAt,
             "lastLogin" to lastLogin
         )

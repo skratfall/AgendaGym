@@ -10,11 +10,14 @@ import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.state.AuthUiState
 import com.gym.agenda.state.UiState
 import com.gym.agenda.utils.NotificationMessages
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,6 +35,23 @@ class AuthViewModel @Inject constructor(
 
     init {
         loadCurrentUser()
+        updateTokenIfLoggedIn()
+    }
+
+    private fun updateTokenIfLoggedIn() {
+        viewModelScope.launch {
+            authRepository.authState.collect { user ->
+                if (user != null) {
+                    try {
+                        val token = FirebaseMessaging.getInstance().token.await()
+                        authRepository.updateFcmToken(token)
+                        Timber.d("✅ Token FCM actualizado al iniciar: $token")
+                    } catch (e: Exception) {
+                        Timber.e(e, "❌ Error al obtener token FCM")
+                    }
+                }
+            }
+        }
     }
 
     private fun loadCurrentUser() {
@@ -53,6 +73,7 @@ class AuthViewModel @Inject constructor(
                         currentUser = user
                     )
                     _notification.value = NotificationEvent.Success(NotificationMessages.LOGIN_SUCCESS)
+                    updateFcmToken()
                 }
                 .onFailure { error ->
                     val errorMsg = when {
@@ -110,5 +131,17 @@ class AuthViewModel @Inject constructor(
 
     fun dismissNotification() {
         _notification.value = null
+    }
+
+    private fun updateFcmToken() {
+        viewModelScope.launch {
+            try {
+                val token = FirebaseMessaging.getInstance().token.await()
+                authRepository.updateFcmToken(token)
+                Timber.d("🚀 Token FCM enviado al login: $token")
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Error al enviar token FCM")
+            }
+        }
     }
 }

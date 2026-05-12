@@ -30,8 +30,15 @@ fun AdminDashboardScreen(
 ) {
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
     val adminUiState by adminViewModel.uiState.collectAsState()
+    val adminNotification by adminViewModel.notification.collectAsState()
 
-    // Refrescar datos cuando la pantalla se compone (al regresaro desde AdminAppointmentsScreen)
+    // Observar notificaciones del admin
+    com.gym.agenda.ui.utils.ActionFeedbackSnackbar(
+        notification = adminNotification,
+        onDismiss = { adminViewModel.dismissNotification() }
+    )
+
+    // Refrescar datos cuando la pantalla se compone
     LaunchedEffect(Unit) {
         adminViewModel.refreshAppointments()
     }
