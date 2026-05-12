@@ -142,21 +142,10 @@ fun GymNavHost(
         ) { backStackEntry ->
             val appointmentId = backStackEntry.arguments?.getString(NavArgs.APPOINTMENT_ID)
 
-            // Obtener el ViewModel compartido del Dashboard (siempre disponible)
-            val parentEntry = try {
-                navController.getBackStackEntry(GymNav.Dashboard.route)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
-            val listViewModel: GymListViewModel? = parentEntry?.let { hiltViewModel(it) }
-
             AddEditScreen(
                 appointmentId = if (appointmentId == "new") null else appointmentId,
                 onNavigateBack = {
                     navController.popBackStack()
-                },
-                onAppointmentSaved = {
-                    listViewModel?.refreshAppointments()
                 }
             )
         }

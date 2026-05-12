@@ -13,6 +13,7 @@ import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.utils.NotificationMessages
+import com.gym.agenda.utils.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -31,7 +32,8 @@ data class AdminUiState(
 @HiltViewModel
 class AdminViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
 
     private val _refreshTrigger = MutableSharedFlow<Unit>()
@@ -42,6 +44,9 @@ class AdminViewModel @Inject constructor(
     private val _filters = MutableStateFlow(AppointmentFilters())
     val filters: StateFlow<AppointmentFilters> = _filters.asStateFlow()
 
+    // Para evitar notificar citas viejas al iniciar la app
+    private var isInitialLoad = true
+
     val users: StateFlow<List<User>> = authRepository.getAllUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -51,8 +56,31 @@ class AdminViewModel @Inject constructor(
         _refreshTrigger
     ).flatMapLatest {
         appointmentRepository.getAllAppointments()
+    }.onEach { appointments ->
+        checkForNewAppointments(appointments)
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun checkForNewAppointments(appointments: List<GymAppointment>) {
+        if (isInitialLoad) {
+            if (appointments.isNotEmpty()) isInitialLoad = false
+            return
+        }
+
+        // Buscamos citas creadas en los últimos 10 segundos que estén PENDING
+        val now = System.currentTimeMillis()
+        val newPending = appointments.filter { 
+            it.status == AppointmentStatus.PENDING && 
+            (now - it.createdAt) < 10000 // Creada hace menos de 10 seg
+        }
+
+        newPending.forEach { appointment ->
+            notificationScheduler.showImmediateNotification(
+                title = "Nueva Cita Solicitada",
+                message = NotificationMessages.ADMIN_NEW_APPOINTMENT.replace("%s", appointment.clientName)
+            )
+        }
+    }
 
     // Citas filtradas basadas en los filtros activos
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -195,15 +223,27 @@ class AdminViewModel @Inject constructor(
 
     fun updateAppointmentStatus(appointmentId: String, status: AppointmentStatus) {
         viewModelScope.launch {
-            appointmentRepository.updateAppointmentStatus(appointmentId, status)
-            val msg = NotificationMessages.STATUS_CONFIRMED.replace("%s", status.name)
-            _notification.value = NotificationEvent.Success(msg)
+            appointmentRepository.getAppointmentById(appointmentId).onSuccess { appointment ->
+                appointmentRepository.updateAppointmentStatus(appointmentId, status)
+                
+                if (status == AppointmentStatus.CONFIRMED) {
+                    notificationScheduler.scheduleAppointmentNotification(appointment.copy(status = status))
+                } else {
+                    notificationScheduler.cancelAppointmentNotification(appointmentId)
+                }
+
+                val msg = NotificationMessages.ADMIN_STATUS_CHANGED.replace("%s", status.displayName)
+                _notification.value = NotificationEvent.Success(msg)
+            }.onFailure { error ->
+                _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.ADMIN_ACTION_ERROR)
+            }
         }
     }
 
     fun deleteAppointment(appointmentId: String) {
         viewModelScope.launch {
             appointmentRepository.deleteAppointment(appointmentId)
+            notificationScheduler.cancelAppointmentNotification(appointmentId)
             _notification.value = NotificationEvent.Success(NotificationMessages.APPOINTMENT_DELETED)
         }
     }

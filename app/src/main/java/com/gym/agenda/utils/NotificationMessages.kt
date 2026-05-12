@@ -25,6 +25,7 @@ object NotificationMessages {
     const val STATUS_COMPLETED = " Cita completada"
 
     // ========== ADMIN MESSAGES ==========
+    const val ADMIN_NEW_APPOINTMENT = "🔔 Nueva solicitud de cita de %s"
     const val ADMIN_STATUS_CHANGED = "✅ Estado de la cita cambió a %s"
     const val ADMIN_USER_DELETED = " Usuario eliminado correctamente"
     const val ADMIN_USER_ROLE_UPDATED = "✅ Rol del usuario actualizado"
