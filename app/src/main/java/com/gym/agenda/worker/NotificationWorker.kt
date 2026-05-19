@@ -26,14 +26,14 @@ class NotificationWorker(
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "gym_appointments"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Citas del Gimnasio",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
+        // Ya no necesitamos el "if" porque el mínimo ahora es Android 11 (API 30)
+        // y los canales se introdujeron en Android 8 (API 26)
+        val channel = NotificationChannel(
+            channelId,
+            "Citas del Gimnasio",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        notificationManager.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle(title)

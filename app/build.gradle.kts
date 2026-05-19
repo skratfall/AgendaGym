@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.gym.agenda"
-    compileSdk = 35
+    compileSdk = 36
 
     kotlin {
         jvmToolchain(21)
@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "com.gym.agenda.camilo_12"
-        minSdk = 24
+        minSdk = 30
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
