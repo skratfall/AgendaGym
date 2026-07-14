@@ -1,8 +1,11 @@
 package com.gym.agenda.di.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -12,32 +15,56 @@ import androidx.navigation.navArgument
 import com.gym.agenda.data.model.UserRole
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.di.screens.*
-import com.gym.agenda.viewmodel.AddEditViewModel
-import com.gym.agenda.viewmodel.GymListViewModel
+import com.gym.agenda.di.viewmodel.GymListViewModel
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun GymNavHost(
     navController: NavHostController,
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
+    // 1. Observamos el usuario actual
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
-    val userRole = currentUser?.role
 
-    val startDestination = when {
-        currentUser == null -> GymNav.Login.route
-        userRole == UserRole.ADMIN -> GymNav.AdminDashboard.route
-        else -> GymNav.Dashboard.route
+    // 2. Estado para fijar la ruta inicial y evitar que el NavHost se recree durante la sesión
+    var finalStartDestination by remember { mutableStateOf<String?>(null) }
+
+    // 3. Determinamos la ruta inicial basándonos en el primer estado disponible
+    LaunchedEffect(Unit) {
+        val user = authViewModel.currentUser.first()
+        finalStartDestination = when {
+            user == null -> GymNav.Login.route
+            user.role == UserRole.ADMIN -> GymNav.AdminDashboard.route
+            else -> GymNav.Dashboard.route
+        }
+    }
+
+    // 4. Mientras se determina el destino (Splash/Loading)
+    if (finalStartDestination == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = finalStartDestination!!
     ) {
         // Auth flows
         composable(GymNav.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(GymNav.Dashboard.route) {
+                viewModel = authViewModel,
+                onLoginSuccess = { user ->
+                    val destination = if (user.role == UserRole.ADMIN) {
+                        GymNav.AdminDashboard.route
+                    } else {
+                        GymNav.Dashboard.route
+                    }
+                    navController.navigate(destination) {
                         popUpTo(GymNav.Login.route) { inclusive = true }
                     }
                 },
@@ -49,8 +76,14 @@ fun GymNavHost(
 
         composable(GymNav.Register.route) {
             RegisterScreen(
-                onRegisterSuccess = {
-                    navController.navigate(GymNav.Dashboard.route) {
+                viewModel = authViewModel,
+                onRegisterSuccess = { user ->
+                    val destination = if (user.role == UserRole.ADMIN) {
+                        GymNav.AdminDashboard.route
+                    } else {
+                        GymNav.Dashboard.route
+                    }
+                    navController.navigate(destination) {
                         popUpTo(GymNav.Login.route) { inclusive = true }
                     }
                 },
@@ -62,7 +95,10 @@ fun GymNavHost(
 
         // User flows
         composable(GymNav.Dashboard.route) {
+            val listViewModel: GymListViewModel = hiltViewModel()
             DashboardScreen(
+                authViewModel = authViewModel,
+                listViewModel = listViewModel,
                 onNavigateToAppointments = {
                     navController.navigate(GymNav.AppointmentList.route)
                 },
@@ -78,8 +114,12 @@ fun GymNavHost(
             )
         }
 
+
         composable(GymNav.AppointmentList.route) {
+            val dashboardBackStackEntry = remember(navController.currentBackStackEntry) { navController.getBackStackEntry(GymNav.Dashboard.route) }
+            val listViewModel: GymListViewModel = hiltViewModel(dashboardBackStackEntry)
             ListScreen(
+                viewModel = listViewModel,
                 onNavigateToAddEdit = { appointmentId ->
                     navController.navigate(
                         GymNav.AddEditAppointment.createRoute(appointmentId)
@@ -101,8 +141,16 @@ fun GymNavHost(
             )
         ) { backStackEntry ->
             val appointmentId = backStackEntry.arguments?.getString(NavArgs.APPOINTMENT_ID)
+
+            // Obtener el ViewModel del Dashboard para refrescar la lista
+            val dashboardBackStackEntry = remember(navController.currentBackStackEntry) {
+                navController.getBackStackEntry(GymNav.Dashboard.route)
+            }
+            val listViewModel: GymListViewModel = hiltViewModel(dashboardBackStackEntry)
+
             AddEditScreen(
                 appointmentId = if (appointmentId == "new") null else appointmentId,
+                listViewModel = listViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -112,6 +160,7 @@ fun GymNavHost(
         // Admin flows
         composable(GymNav.AdminDashboard.route) {
             AdminDashboardScreen(
+                authViewModel = authViewModel,
                 onNavigateToUsers = {
                     navController.navigate(GymNav.AdminUsers.route)
                 },
@@ -139,6 +188,11 @@ fun GymNavHost(
             AdminAppointmentsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToEdit = { appointmentId ->
+                    navController.navigate(
+                        GymNav.AddEditAppointment.createRoute(appointmentId)
+                    )
                 }
             )
         }

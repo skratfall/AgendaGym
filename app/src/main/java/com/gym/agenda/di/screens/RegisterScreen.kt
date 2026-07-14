@@ -21,7 +21,7 @@ import com.gym.agenda.di.viewmodel.AuthViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (com.gym.agenda.data.model.User) -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -33,8 +33,8 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState.currentUser) {
-        if (uiState.currentUser != null) {
-            onRegisterSuccess()
+        uiState.currentUser?.let { user ->
+            onRegisterSuccess(user)
         }
     }
 

@@ -22,11 +22,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.R
+import com.gym.agenda.ui.utils.AnimatedButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (com.gym.agenda.data.model.User) -> Unit,
     onNavigateToRegister: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -36,8 +37,8 @@ fun LoginScreen(
 
     // Efecto para navegar cuando el login es exitoso
     LaunchedEffect(uiState.currentUser) {
-        if (uiState.currentUser != null) {
-            onLoginSuccess()
+        uiState.currentUser?.let { user ->
+            onLoginSuccess(user)
         }
     }
 
@@ -112,7 +113,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Botón Login
-            Button(
+            AnimatedButton(
                 onClick = { viewModel.login(email, password) },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.gym.agenda"
-    compileSdk = 35
+    compileSdk = 37
 
     kotlin {
         jvmToolchain(21)
@@ -17,8 +17,8 @@ android {
 
     defaultConfig {
         applicationId = "com.gym.agenda.camilo_12"
-        minSdk = 24
-        targetSdk = 35
+        minSdk = 31
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
     }
@@ -40,12 +40,15 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
-
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.materialIconsExtended)
@@ -59,6 +62,7 @@ dependencies {
     // ✅ FIREBASE
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
 
     // ✅ HILT
     implementation(libs.hilt.android)
@@ -66,4 +70,13 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // ✅ LOGGING
+    implementation(libs.timber)
+
+    // ✅ UI Enhancements
+    implementation(libs.lottie.compose)
+    implementation(libs.accompanist.systemuicontroller)
+    implementation(libs.shimmer.compose)
 }

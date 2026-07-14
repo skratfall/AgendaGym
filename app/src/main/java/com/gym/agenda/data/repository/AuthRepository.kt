@@ -91,4 +91,15 @@ class AuthRepository @Inject constructor(
     suspend fun toggleUserActive(userId: String, isActive: Boolean): Result<Unit> {
         return firestoreService.updateUser(userId, mapOf("isActive" to isActive))
     }
+
+    // 🔹 Eliminar usuario (ADMIN)
+    suspend fun deleteUser(userId: String): Result<Unit> {
+        return firestoreService.deleteUser(userId)
+    }
+
+    // 🔹 Actualizar token FCM
+    suspend fun updateFcmToken(token: String): Result<Unit> {
+        val uid = authService.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
+        return firestoreService.updateUser(uid, mapOf("fcmToken" to token))
+    }
 }

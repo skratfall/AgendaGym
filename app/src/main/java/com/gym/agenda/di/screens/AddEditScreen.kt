@@ -1,9 +1,13 @@
 package com.gym.agenda.di.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,18 +17,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
-import com.gym.agenda.viewmodel.AddEditViewModel
+import com.gym.agenda.di.viewmodel.AddEditViewModel
+import com.gym.agenda.di.viewmodel.GymListViewModel
 import com.gym.agenda.ui.utils.*
 import java.util.Calendar
+import com.gym.agenda.R
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditScreen(
     appointmentId: String?,
     onNavigateBack: () -> Unit,
-    viewModel: AddEditViewModel = hiltViewModel()
+    onAppointmentSaved: () -> Unit = {},
+    viewModel: AddEditViewModel = hiltViewModel(),
+    listViewModel: GymListViewModel? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -43,7 +54,17 @@ fun AddEditScreen(
     var showTimePicker by remember { mutableStateOf(false) }
 
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = if (dateMillis > 0) dateMillis else System.currentTimeMillis()
+        initialSelectedDateMillis = if (dateMillis > 0) dateMillis else System.currentTimeMillis(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val calendar = Calendar.getInstance()
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                return utcTimeMillis >= calendar.timeInMillis
+            }
+        }
     )
 
     val timePickerState = rememberTimePickerState(
@@ -67,7 +88,13 @@ fun AddEditScreen(
     // Navegar al guardar
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
+            // Esperar 4 segundos para que la notificación se vea
+            delay(4000)
+            // Refrescar la lista de citas
+            listViewModel?.refreshAppointments()
+            // Navegar de vuelta al dashboard
             onNavigateBack()
+            onAppointmentSaved()
         }
     }
 
@@ -79,7 +106,7 @@ fun AddEditScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
                     }
                 }
             )
@@ -207,13 +234,25 @@ fun AddEditScreen(
                 maxLines = 5
             )
 
-            uiState.errorMessage?.let { error ->
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp
-                )
+            AnimatedVisibility(
+                visible = uiState.errorMessage != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                uiState.errorMessage?.let { error ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        LottieAnimation(
+                            spec = LottieCompositionSpec.RawRes(R.raw.error_animation), // Asumir que hay un archivo error_animation.json en res/raw
+                            size = 100.dp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -242,7 +281,8 @@ fun AddEditScreen(
                 enabled = !uiState.isLoading &&
                         clientName.isNotBlank() &&
                         service.isNotBlank() &&
-                        dateMillis > 0
+                        dateMillis > 0 &&
+                        (appointmentId == null || uiState.appointment?.status == AppointmentStatus.PENDING)
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
@@ -250,8 +290,11 @@ fun AddEditScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
+                    val isConfirmed = uiState.appointment?.status == AppointmentStatus.CONFIRMED
                     Text(
-                        if (appointmentId == null) "Agendar Cita" else "Guardar Cambios",
+                        if (appointmentId == null) "Agendar Cita" 
+                        else if (isConfirmed) "Cita Confirmada (No editable)" 
+                        else "Guardar Cambios",
                         fontSize = 16.sp
                     )
                 }
