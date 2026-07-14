@@ -142,8 +142,15 @@ fun GymNavHost(
         ) { backStackEntry ->
             val appointmentId = backStackEntry.arguments?.getString(NavArgs.APPOINTMENT_ID)
 
+            // Obtener el ViewModel del Dashboard para refrescar la lista
+            val dashboardBackStackEntry = remember(navController.currentBackStackEntry) {
+                navController.getBackStackEntry(GymNav.Dashboard.route)
+            }
+            val listViewModel: GymListViewModel = hiltViewModel(dashboardBackStackEntry)
+
             AddEditScreen(
                 appointmentId = if (appointmentId == "new") null else appointmentId,
+                listViewModel = listViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 }

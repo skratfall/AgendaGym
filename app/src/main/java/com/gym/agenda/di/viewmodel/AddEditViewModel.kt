@@ -1,32 +1,36 @@
 package com.gym.agenda.di.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gym.agenda.data.model.AppointmentStatus
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.gym.agenda.data.model.GymAppointment
-import com.gym.agenda.data.model.NotificationEvent
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.di.navigation.NavArgs
 import com.gym.agenda.state.AddEditAppointmentUiState
 import com.gym.agenda.utils.AppointmentValidator
-import com.gym.agenda.utils.NotificationMessages
-import com.gym.agenda.utils.NotificationScheduler
+import com.gym.agenda.utils.ValidationResult
+import com.gym.agenda.worker.NotificationWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class AddEditViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository,
     private val authRepository: AuthRepository,
-    private val notificationScheduler: NotificationScheduler,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -35,9 +39,6 @@ class AddEditViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AddEditAppointmentUiState())
     val uiState: StateFlow<AddEditAppointmentUiState> = _uiState.asStateFlow()
-
-    private val _notification = MutableStateFlow<NotificationEvent?>(null)
-    val notification: StateFlow<NotificationEvent?> = _notification.asStateFlow()
 
     init {
         if (appointmentId != null) {
@@ -62,7 +63,6 @@ class AddEditViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = error.message ?: "Error al cargar cita"
                     )
-                    _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.APPOINTMENT_ERROR)
                 }
         }
     }
@@ -81,12 +81,10 @@ class AddEditViewModel @Inject constructor(
 
             if (validationResult.isInvalid()) {
                 Timber.e("❌ Validación fallida: ${validationResult.getErrorMessage()}")
-                val errorMsg = validationResult.getErrorMessage() ?: NotificationMessages.APPOINTMENT_ERROR
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = errorMsg
+                    errorMessage = validationResult.getErrorMessage() ?: "Error en validación"
                 )
-                _notification.value = NotificationEvent.Error(errorMsg)
                 return@launch
             }
 
@@ -102,7 +100,6 @@ class AddEditViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = "Sesión no válida. Por favor, inicia sesión de nuevo."
                 )
-                _notification.value = NotificationEvent.Error(NotificationMessages.SESSION_EXPIRED)
                 return@launch
             }
 
@@ -131,26 +128,12 @@ class AddEditViewModel @Inject constructor(
                 .onSuccess { id ->
                     val finalId = if (appointmentId == null) id.toString() else appointmentId
                     Timber.i("✅ Cita guardada: $finalId")
+                    scheduleNotification(appointmentToSave.copy(id = finalId))
                     
-                    val finalAppointment = appointmentToSave.copy(id = finalId)
-                    if (finalAppointment.status == AppointmentStatus.CONFIRMED) {
-                        notificationScheduler.scheduleAppointmentNotification(finalAppointment)
-                    } else {
-                        Timber.d("ℹ️ No se programa notificación: estado es ${finalAppointment.status}")
-                        notificationScheduler.cancelAppointmentNotification(finalId)
-                    }
-                    
-                    val successMsg = if (appointmentId == null) {
-                        NotificationMessages.APPOINTMENT_CREATED
-                    } else {
-                        NotificationMessages.APPOINTMENT_UPDATED
-                    }
-
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         saveSuccess = true
                     )
-                    _notification.value = NotificationEvent.Success(successMsg)
                 }
                 .onFailure { error ->
                     Timber.e(error, "❌ Error al guardar cita")
@@ -158,8 +141,32 @@ class AddEditViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = error.message ?: "Error al guardar"
                     )
-                    _notification.value = NotificationEvent.Error(error.message ?: NotificationMessages.APPOINTMENT_ERROR)
                 }
+        }
+    }
+
+    private fun scheduleNotification(appointment: GymAppointment) {
+        val now = System.currentTimeMillis()
+        val notificationTime = appointment.dateTimeMillis - (30 * 60000L) // 30 minutos antes
+        val delay = notificationTime - now
+
+        if (delay > 0) {
+            val data = Data.Builder()
+                .putString("title", "Recordatorio de Cita")
+                .putString("message", "Tu sesión de ${appointment.service} comienza en 30 minutos.")
+                .build()
+
+            val notificationRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(data)
+                .addTag("notification_${appointment.id}")
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "notification_${appointment.id}",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                notificationRequest
+            )
         }
     }
 
@@ -169,10 +176,6 @@ class AddEditViewModel @Inject constructor(
 
     fun resetSaveSuccess() {
         _uiState.value = _uiState.value.copy(saveSuccess = false)
-    }
-
-    fun dismissNotification() {
-        _notification.value = null
     }
 
     /**

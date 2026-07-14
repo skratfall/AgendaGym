@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gym.agenda.data.model.AppointmentStatus
 import com.gym.agenda.data.model.GymAppointment
+import com.gym.agenda.data.model.NotificationEvent
 import com.gym.agenda.data.repository.AppointmentRepository
 import com.gym.agenda.data.repository.AuthRepository
 import com.gym.agenda.state.AppointmentListUiState
@@ -27,6 +28,9 @@ class GymListViewModel @Inject constructor(
 
     private val _appointments = MutableStateFlow<List<GymAppointment>>(emptyList())
     val appointments: StateFlow<List<GymAppointment>> = _appointments.asStateFlow()
+
+    private val _notification = MutableStateFlow<NotificationEvent?>(null)
+    val notification: StateFlow<NotificationEvent?> = _notification.asStateFlow()
 
     // 🔄 SharedFlow para disparar refresco explícito de citas
     private val _refreshTrigger = MutableSharedFlow<Unit>()
@@ -83,13 +87,22 @@ class GymListViewModel @Inject constructor(
         newList.forEach { newApp ->
             val oldApp = previousAppointments.find { it.id == newApp.id }
             
-            // Si la cita existía y su estado cambió
-            if (oldApp != null && oldApp.status != newApp.status) {
-                // Solo notificar si pasa a CONFIRMED o CANCELLED
-                if (newApp.status == AppointmentStatus.CONFIRMED || newApp.status == AppointmentStatus.CANCELLED) {
-                    Timber.i("🔔 Cambio de estado detectado: ${newApp.id} -> ${newApp.status}")
-                    triggerLocalNotification(newApp)
-                }
+            if (oldApp == null) {
+                // Nueva cita creada
+                Timber.i("✨ Nueva cita detectada: ${newApp.id} - ${newApp.service}")
+                _notification.value = NotificationEvent.Success("¡Nueva cita creada: ${newApp.service}!")
+                notificationScheduler.showImmediateNotification(
+                    "📅 Nueva Cita",
+                    "Se ha creado una cita para ${newApp.service}"
+                )
+            } else if (oldApp.status != newApp.status) {
+                // Cambio de estado
+                Timber.i("🔔 Cambio de estado detectado: ${newApp.id} -> ${newApp.status}")
+                triggerLocalNotification(newApp)
+            } else if (oldApp != newApp) {
+                // Otros cambios en la cita
+                Timber.i("🔄 Cambios detectados en cita: ${newApp.id}")
+                _notification.value = NotificationEvent.Info("Cita ${newApp.service} ha sido actualizada")
             }
         }
         previousAppointments = newList
@@ -103,6 +116,13 @@ class GymListViewModel @Inject constructor(
         }
         val message = "Tu sesión de ${appointment.service} ha cambiado a: ${appointment.status.displayName}"
         notificationScheduler.showImmediateNotification(title, message)
+        
+        // Mostrar notificación en UI
+        _notification.value = when (appointment.status) {
+            AppointmentStatus.CONFIRMED -> NotificationEvent.Success("¡Cita confirmada!")
+            AppointmentStatus.CANCELLED -> NotificationEvent.Error("Cita cancelada")
+            else -> NotificationEvent.Info("Actualización de cita")
+        }
     }
 
     fun deleteAppointment(appointment: GymAppointment) {
@@ -122,6 +142,10 @@ class GymListViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    fun dismissNotification() {
+        _notification.value = null
     }
 
     fun getFilteredAppointments(): List<GymAppointment> {

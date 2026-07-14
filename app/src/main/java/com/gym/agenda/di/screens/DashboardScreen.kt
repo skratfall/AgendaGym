@@ -19,6 +19,7 @@ import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.ui.utils.UiUtils
 import com.gym.agenda.di.viewmodel.GymListViewModel
 import com.gym.agenda.ui.utils.AnimatedButton
+import com.gym.agenda.ui.utils.ActionFeedbackSnackbar
 import com.valentinilk.shimmer.shimmer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,9 +34,16 @@ fun DashboardScreen(
     val currentUser by authViewModel.currentUser.collectAsState(initial = null)
     val appointments by listViewModel.appointments.collectAsState()
     val uiState by listViewModel.uiState.collectAsState()
+    val notification by listViewModel.notification.collectAsState()
 
     val upcomingAppointments = appointments.filter { it.isUpcoming && it.status != com.gym.agenda.data.model.AppointmentStatus.CANCELLED }
     val userName = currentUser?.name ?: "Usuario"
+
+    // Mostrar notificaciones
+    ActionFeedbackSnackbar(
+        notification = notification,
+        onDismiss = { listViewModel.dismissNotification() }
+    )
 
     Scaffold(
         topBar = {

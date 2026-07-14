@@ -23,7 +23,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.gym.agenda.di.viewmodel.AuthViewModel
 import com.gym.agenda.R
 import com.gym.agenda.ui.utils.AnimatedButton
-import com.gym.agenda.ui.utils.ActionFeedbackSnackbar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +32,6 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val notification by viewModel.notification.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -44,109 +42,101 @@ fun LoginScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold { paddingValues ->
-            Column(
+    Scaffold { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Logo o Icono
+            Icon(
+                imageVector = Icons.Default.FitnessCenter,
+                contentDescription = "Gym Logo",
+                modifier = Modifier.size(120.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "Gym Agenda",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = "Inicia sesión para continuar",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
+
+            // Campo Email
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Campo Contraseña
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Contraseña") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            // Mensaje de error
+            uiState.errorMessage?.let { error ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón Login
+            AnimatedButton(
+                onClick = { viewModel.login(email, password) },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                // Logo o Icono
-                Image(
-                    painter = painterResource(id = R.drawable.imagen_ico),
-                    contentDescription = "Gym Logo",
-                    modifier = Modifier.size(120.dp)
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    text = "Gym Agenda",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    text = "Inicia sesión para continuar",
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 32.dp)
-                )
-
-                // Campo Email
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Campo Contraseña
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Contraseña") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                // Mensaje de error
-                uiState.errorMessage?.let { error ->
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 14.sp
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White
                     )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Botón Login
-                AnimatedButton(
-                    onClick = { viewModel.login(email, password) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Iniciar Sesión", fontSize = 16.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Link a Registro
-                TextButton(onClick = onNavigateToRegister) {
-                    Text("¿No tienes cuenta? Regístrate")
+                } else {
+                    Text("Iniciar Sesión", fontSize = 16.sp)
                 }
             }
-        }
 
-        // Notificación de feedback
-        ActionFeedbackSnackbar(
-            notification = notification,
-            onDismiss = { viewModel.dismissNotification() },
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Link a Registro
+            TextButton(onClick = onNavigateToRegister) {
+                Text("¿No tienes cuenta? Regístrate")
+            }
+        }
     }
 }
