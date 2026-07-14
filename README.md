@@ -466,7 +466,7 @@ Para reportar problemas o sugerencias:
 [![GitHub](https://img.shields.io/badge/GitHub-@CamiloMinoTa-black?style=flat-square&logo=github)](https://github.com/CamiloMinoTa)
 [![GitHub](https://img.shields.io/badge/GitHub-@skratfall-black?style=flat-square&logo=github)](https://github.com/skratfall)   
    
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-@skratfall-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/brandon-am-/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-@skratfall-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/brandondon-am-/)
 
 [![Instagram](https://img.shields.io/badge/Instagram-@skratfall-purple?style=flat-square&logo=instagram)](https://www.instagram.com/brandon_a.m_/)
 
