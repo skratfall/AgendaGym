@@ -1,5 +1,9 @@
-# <div align="center"> Gym Agenda - Sistema de Gestión de Citas </div>  <div image="(https://raw.githubusercontent.com/skratfall/AgendaGym/refs/heads/master/app/src/main/ic_launcher-playstore.png)" width="100" height="100" align="center" />
+# <div align="center"> Gym Agenda - Sistema de Gestión de Citas </div> 
+<div align="center"> 
+    <img src="https://raw.githubusercontent.com/skratfall/AgendaGym/refs/heads/master/app/src/main/ic_launcher-playstore.png" width="190"  align="center"/>
+</div>    
 
+---
 <div align="center">
 
 ![Android](https://img.shields.io/badge/Android-31+-green?style=flat-square&logo=android)
